@@ -18,8 +18,8 @@ namespace WaveVisualizer
         static int numOfSamples = 44100*180;
         static int[] rawSamples;
         static int sampleRate = 44100;
-        static int maxSamplesPerSecond = 200;
-        static int initialSamplesPerSecond = 3;
+        static int maxSamplesPerSecond = 100;
+        static int initialSamplesPerSecond = 1;
 
         int selStart = 0;
         int selEnd = numOfSamples;
@@ -49,7 +49,7 @@ namespace WaveVisualizer
             // clear the chart series points
             chart1.Series.Clear();
             var series = chart1.Series.Add("My Series");
-            series.ChartType = SeriesChartType.Line;
+            series.ChartType = SeriesChartType.Spline;
             //series.XValueType = ChartValueType.Double;
             var chartArea = chart1.ChartAreas[series.ChartArea];
             chartArea.AxisX.LabelStyle.Format = "#.###";
@@ -84,10 +84,17 @@ namespace WaveVisualizer
             //plot chart points
             for (int i = 0; i < seconds; i++)
             {
-                for (int j = 0; j < samplesPerSecond; j++)
+                if(samplesPerSecond == 1)
                 {
-                    chart1.Series["My Series"].Points.AddXY(((double)j / samplesPerSecond) + (double)i, rawSamples[i * j]);
+                    chart1.Series["My Series"].Points.AddXY(i, rawSamples[i * sampleRate]);
+                } else
+                {
+                    for (int j = 0; j < samplesPerSecond; j++)
+                    {
+                        chart1.Series["My Series"].Points.AddXY(((double)j / samplesPerSecond) + (double)i, rawSamples[i * j]);
+                    }
                 }
+                
             }
             /*******************
              * END Initial setup
@@ -112,10 +119,19 @@ namespace WaveVisualizer
             //plot chart points
             for (int i = 0; i < seconds; i++)
             {
-                for(int j = 0;j < samplesPerSecond; j++)
+                if (samplesPerSecond == 1)
                 {
-                    chart1.Series["My Series"].Points.AddXY(((double)j / samplesPerSecond) + (double)i, rawSamples[i * j]);
+                    chart1.Series["My Series"].Points.AddXY(i, rawSamples[i * sampleRate]);
                 }
+                else
+                {
+                    for (int j = 0; j < samplesPerSecond; j++)
+                    {
+                        chart1.Series["My Series"].Points.AddXY(((double)j / samplesPerSecond) + (double)i, rawSamples[i * j]);
+                    }
+                }
+
+                    
             }
         }
         private void ZoomOutFull()
@@ -150,6 +166,8 @@ namespace WaveVisualizer
             {
                 selStart = (int)newSelStart * sampleRate;
                 selEnd = (int)newSelEnd * sampleRate;
+                Debug.WriteLine(selStart);
+                Debug.WriteLine(selEnd);
                 int newSel = Math.Abs(selStart - selEnd);
                 if(newSel > chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size * sampleRate)
                 {
