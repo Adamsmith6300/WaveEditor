@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+
 namespace WaveVisualizer
 {
     public partial class Form1 : Form
@@ -18,12 +19,14 @@ namespace WaveVisualizer
         static int numOfSamples = 44100*180;
         static int[] rawSamples;
         static int sampleRate = 44100;
-        static int maxSamplesPerSecond = 100;
-        static int initialSamplesPerSecond = 1;
+        static int maxSamplesPerSecond = 10;
+        int initialSamplesPerSecond = 1;
 
         int selStart = 0;
         int selEnd = numOfSamples;
         int sel = numOfSamples;
+
+        ComplexNum[] fourierSamples;
 
 
         public Form1()
@@ -47,7 +50,10 @@ namespace WaveVisualizer
              * START Initial setup
              ********************/
             // clear the chart series points
-            chart1.Series.Clear();
+            foreach (var ser in chart1.Series)
+            {
+                ser.Points.Clear();
+            }
             var series = chart1.Series.Add("My Series");
             series.ChartType = SeriesChartType.Spline;
             //series.XValueType = ChartValueType.Double;
@@ -61,19 +67,21 @@ namespace WaveVisualizer
             //chartArea.AxisY.Title = "Frequency";
             chartArea.BorderWidth = 1;
             //allow zooming
-            chartArea.AxisX.ScaleView.Zoomable = true;
+            chartArea.AxisX.ScaleView.Zoomable = false;
+            //chartArea.AxisY.ScaleView.Zoomable = true;
+            chart1.MouseWheel += chart1_MouseWheel;
             chartArea.AxisX.ScaleView.SizeType = DateTimeIntervalType.Number;
             //minmum zoom to 10
-            chartArea.AxisX.ScaleView.MinSize = 1/sampleRate;
+            chartArea.AxisX.ScaleView.MinSize = 0.01;
             // set view range to [0,max]
             chartArea.AxisX.ScaleView.Zoom(0, rawSamples.Length/sampleRate);
             chartArea.AxisX.ScaleView.Position = 0.00;
-            chartArea.AxisX.Minimum = 0;
-            chartArea.AxisX.Maximum = rawSamples.Length / sampleRate;
+            chartArea.AxisX.Minimum = 0.00;
+            chartArea.AxisX.Maximum = (double)rawSamples.Length / sampleRate;
             //reset zoom button
             //chartArea.AxisX.ScrollBar.ButtonStyle = ScrollBarButtonStyles.SmallScroll;
             // enable autoscroll
-            chartArea.CursorX.AutoScroll = true;
+            //chartArea.CursorX.AutoScroll = true;
             chartArea.CursorX.Interval = 0.01;
             chartArea.CursorX.IsUserSelectionEnabled = true;
 
@@ -112,10 +120,10 @@ namespace WaveVisualizer
              * we start adding data points back into graph up to maxSamplesPerSecond
             */
             int samplesPerSecond = Math.Max(1,(int)(((double)(rawSamples.Length - sel) / rawSamples.Length) * maxSamplesPerSecond));
-            if(sel/sampleRate > 10)
-            {
-                samplesPerSecond = initialSamplesPerSecond;
-            }
+            //if(sel/sampleRate > 10)
+            //{
+            //    samplesPerSecond = initialSamplesPerSecond;
+            //}
             //plot chart points
             for (int i = 0; i < seconds; i++)
             {
@@ -136,13 +144,13 @@ namespace WaveVisualizer
         }
         private void ZoomOutFull()
         {
+            chart1.ChartAreas[0].AxisX.ScaleView.Zoom(0, rawSamples.Length / sampleRate);
+            chart1.ChartAreas[0].AxisX.ScaleView.Position = 0.00;
             sel = numOfSamples;
             selStart = 0;
             selEnd = numOfSamples;
-            newChart();
+            refreshChart();
         }
-
-
 
         //event Handlers
         private void Button1_Click(object sender, EventArgs e)
@@ -152,35 +160,72 @@ namespace WaveVisualizer
         {
            
         }
-            private void Chart1_Click(object sender, EventArgs e)
+        private void chart1_MouseWheel(object sender, MouseEventArgs e)
         {
+            var chart = (Chart)sender;
+            var xAxis = chart.ChartAreas[0].AxisX;
 
-            MouseEventArgs me = (MouseEventArgs)e;
-            if (me.Button == MouseButtons.Right)
+            try
             {
-                ZoomOutFull();
-            }
-            double newSelStart = chart1.ChartAreas["ChartArea1"].CursorX.SelectionStart;
-            double newSelEnd = chart1.ChartAreas["ChartArea1"].CursorX.SelectionEnd;
-            if (Math.Abs(selEnd - newSelEnd) > 0 || Math.Abs(newSelStart - selStart) > 0)
-            {
-                selStart = (int)newSelStart * sampleRate;
-                selEnd = (int)newSelEnd * sampleRate;
-                Debug.WriteLine(selStart);
-                Debug.WriteLine(selEnd);
-                int newSel = Math.Abs(selStart - selEnd);
-                if(newSel > chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size * sampleRate)
+                if (e.Delta < 0) // Scrolled down.
                 {
-                    ZoomOutFull();
-                }
-                if (newSel > 0)
-                {
-                    sel = Math.Abs(selEnd - selStart);
+
+                    //ZoomOutFull();
+                    var xMin = xAxis.ScaleView.ViewMinimum;
+                    var xMax = xAxis.ScaleView.ViewMaximum;
+                    var posXStart = xAxis.PixelPositionToValue(e.Location.X) - (xMax - xMin) * 2.00;
+                    var posXFinish = xAxis.PixelPositionToValue(e.Location.X) + (xMax - xMin) * 2.00;
+                    selStart = (int)posXStart * sampleRate;
+                    selEnd = (int)posXFinish * sampleRate;
+                    sel = Math.Abs(((int)posXStart * sampleRate) - ((int)posXFinish * sampleRate));
                     refreshChart();
+                    xAxis.ScaleView.Zoom(posXStart, posXFinish);
+                    //xAxis.ScaleView.ZoomReset();
                 }
-                
+                else if (e.Delta > 0) // Scrolled up.
+                {
+                    var xMin = xAxis.ScaleView.ViewMinimum;
+                    var xMax = xAxis.ScaleView.ViewMaximum;
+                    var posXStart = xAxis.PixelPositionToValue(e.Location.X) - (xMax - xMin) / 2.00;
+                    var posXFinish = xAxis.PixelPositionToValue(e.Location.X) + (xMax - xMin) / 2.00;
+                    selStart = (int)posXStart * sampleRate;
+                    selEnd = (int)posXFinish * sampleRate;
+                    sel = Math.Abs(((int)posXStart * sampleRate) - ((int)posXFinish * sampleRate));
+                    refreshChart();
+                    xAxis.ScaleView.Zoom(posXStart, posXFinish);
+                }
             }
-            
+            catch { }
+        }
+        private void Chart1_Click(object sender, EventArgs e)
+        {
+            MouseEventArgs me = (MouseEventArgs)e;
+            var chart = (Chart)sender;
+            var xAxis = chart.ChartAreas[0].AxisX;
+            var posXStart = xAxis.PixelPositionToValue(me.Location.X);
+            var posXFinish = xAxis.PixelPositionToValue(me.Location.X);
+            dft((int)posXStart, (int)posXFinish);
+
+        }
+
+        private void dft(int start, int end)
+        {
+            int N = end - start;
+            //int[] samples = rawSamples[start, end];
+            for (int f = 0; f < N; f++)
+            {
+                fourierSamples[f] = new ComplexNum();
+                for (int t = 0; t < N; t++)
+                {
+                    //ComplexNum getters/setters needed
+                    //fourierSamples[f].re += rawSamples[start + t] * Math.Cos((2 * Math.PI * t * f) / N);
+                    //fourierSamples[f].im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * t * f) / N);
+                }
+                //ComplexNum getters/setters needed
+                //fourierSamples[f].re = fourierSamples[f].re / N;
+                //fourierSamples[f].im = fourierSamples[f].im / N;
+            }
+            ///setup chart with fourier samples
         }
 
     }
