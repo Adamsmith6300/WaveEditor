@@ -42,7 +42,10 @@ namespace WaveVisualizer
             short[] rawSamples = waveFile.DataChunk1.Data;
             uint sampleRate = waveFile.FmtChunk1.SamplesPerSec;
             uint bytesPerSec = waveFile.FmtChunk1.AverageBytesPerSec;
-            uint dataSize = waveFile.DataChunk1.DataSize;
+            uint bitsPerSample = waveFile.FmtChunk1.BitsPerSample;
+            uint dataSize = bitsPerSample == 8 ? (uint)rawSamples.Length : waveFile.DataChunk1.DataSize;
+            ushort numChannels = waveFile.FmtChunk1.Channels;
+
             // clear the chart series points
             chart1.Series.Clear();
             //Debug.WriteLine(rawSamples.Length);
@@ -93,14 +96,14 @@ namespace WaveVisualizer
             uint sampleRate = waveFile.FmtChunk1.SamplesPerSec;
             uint bytesPerSec = waveFile.FmtChunk1.AverageBytesPerSec;
             uint bitsPerSample = waveFile.FmtChunk1.BitsPerSample;
-            uint dataSize = waveFile.DataChunk1.DataSize;
+            uint dataSize = bitsPerSample == 8 ? (uint) rawSamples.Length : waveFile.DataChunk1.DataSize;
             ushort numChannels = waveFile.FmtChunk1.Channels;
 
             foreach (var ser in chart1.Series)
             {
                 ser.Points.Clear();
             }
-            int seconds = (int)rawSamples.Length / (int)bytesPerSec;
+            int seconds = (int)dataSize / (int)bytesPerSec;
             int samplesPerSecond = (int)sampleRate * 2;
             if (bitsPerSample == 8)
             {
