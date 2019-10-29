@@ -18,7 +18,34 @@ namespace WaveVisualizer
         private FmtChunk fmtChunk;
         private DataChunk dataChunk;
 
-        //constructor
+        //constructors
+        public RWWaveFile(Byte[] rid, uint rfs, Byte[] rfmt,
+                         Byte[] fid, uint fsz, ushort ftg, ushort fc, uint fsr, uint fbs, ushort fba, ushort fbps,
+                         Byte[] did, uint dsz)
+        {
+            RiffChunk1 = new RiffChunk();
+            FmtChunk1 = new FmtChunk();
+            DataChunk1 = new DataChunk();
+            // RIFF chunk
+            RiffChunk1.RiffID = rid;
+            RiffChunk1.FileSize = rfs;
+            RiffChunk1.RiffFormat = rfmt;
+
+            // fmt chuck
+            FmtChunk1.FmtID = fid;
+            FmtChunk1.FmtSize = fsz;
+            FmtChunk1.FmtTag = ftg;
+            FmtChunk1.Channels = fc;
+            FmtChunk1.SamplesPerSec = fsr;
+            FmtChunk1.AverageBytesPerSec = fbs;
+            FmtChunk1.BlockAlign = fba;
+            FmtChunk1.BitsPerSample = fbps;
+
+            // data chunk
+            DataChunk1.DataID = did;
+            DataChunk1.DataSize = dsz;
+        }
+
         public RWWaveFile(string newFilePath)
         {
             filepath = newFilePath;
@@ -26,7 +53,7 @@ namespace WaveVisualizer
             fileStream = fileInfo.OpenRead();
             RiffChunk1 = new RiffChunk(fileStream);
             FmtChunk1 = new FmtChunk(fileStream);
-            DataChunk1 = new DataChunk(fileStream);
+            DataChunk1 = new DataChunk(fileStream, FmtChunk1);
         }
         internal RiffChunk RiffChunk1 { get => riffChunk; set => riffChunk = value; }
         internal FmtChunk FmtChunk1 { get => fmtChunk; set => fmtChunk = value; }
@@ -51,10 +78,23 @@ namespace WaveVisualizer
                 wr.Write(DataChunk1.DataID);
                 wr.Write(DataChunk1.DataSize);
                 f.Seek(40, System.IO.SeekOrigin.Begin);
-                for (int i = 0; i < DataChunk1.Data.Length/2; i++)
+
+                //Debug.WriteLine("WRITELEN" +DataChunk1.Data.Length/FmtChunk1.SamplesPerSec);
+                if(FmtChunk1.BitsPerSample == 16)
                 {
-                    wr.Write(DataChunk1.Data[i]);
+                    for (int i = 0; i < DataChunk1.Data.Length; i++)
+                    {
+                        wr.Write(DataChunk1.Data[i]);
+                    }
                 }
+                if(FmtChunk1.BitsPerSample == 8)
+                {
+                    for (int i = 0; i < DataChunk1.Data.Length; i++)
+                    {
+                        wr.Write((Byte)DataChunk1.Data[i]);
+                    }
+                }
+               
             }
             finally
             {
@@ -88,6 +128,11 @@ namespace WaveVisualizer
                 riffFormat = new byte[4];
                 Read(FS);
             }
+
+            public RiffChunk()
+            {
+            }
+
             public void Read(FileStream FS)
             {
                 FS.Read(riffID, 0, 4);
@@ -117,6 +162,10 @@ namespace WaveVisualizer
             {
                 fmtID = new byte[4];
                 Read(FS);
+            }
+
+            public FmtChunk()
+            {
             }
 
             public void Read(FileStream FS)
@@ -156,35 +205,42 @@ namespace WaveVisualizer
             private uint dataSize;
             private int numSamples;
             private Int16[] data;
-            public DataChunk(FileStream FS)
+            public DataChunk(FileStream FS, FmtChunk fmt)
             {
                 dataID = new byte[4];
-                Read(FS);
+                Read(FS, fmt);
             }
 
-            public void Read(FileStream FS)
+            public DataChunk()
+            {
+            }
+
+            public void Read(FileStream FS, FmtChunk fmt)
             {
                 FS.Read(dataID, 0, 4);
                 Debug.Assert(dataID[0] == 100, "Data ID Not Valid");
                 BinaryReader binRead = new BinaryReader(FS);
                 dataSize = binRead.ReadUInt32();
-                data = new Int16[dataSize / 2];
+                ushort channels = fmt.Channels;
+                ushort bitsPerSample = fmt.BitsPerSample;
+                numSamples = (int)dataSize / (bitsPerSample/8);
+                data = new Int16[numSamples];
                 FS.Seek(40, System.IO.SeekOrigin.Begin);
-                numSamples = (int)(dataSize / 2);
                 int i;
                 for (i = 0; i < numSamples; i++)
                 {
-                    data[i] = binRead.ReadInt16();
-                    //data[i] += 128;
+                    if(bitsPerSample == 16){
+                        data[i] = binRead.ReadInt16();
+                    } else {
+                        data[i] = binRead.ReadByte();
+                    }
                 }
-                //Debug.WriteLine(i);
-                Debug.WriteLine(data.Length);
+                //Debug.WriteLine(data.Length/fmt.SamplesPerSec);
             }
 
             //getters/setters
             public byte[] DataID { get => dataID; set => dataID = value; }
             public uint DataSize { get => dataSize; set => dataSize = value; }
-            //short??
             public short[] Data { get => data; set => data = value; }
             public int NumSamples { get => numSamples; set => numSamples = value; }
 
