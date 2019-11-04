@@ -34,6 +34,10 @@ namespace WaveVisualizer
 
 
         ComplexNum[] fourierSamples;
+        Chart2 fourierChart;
+        long posXStart;
+        long posXFinish;
+
         private string filename;
         private RWWaveFile waveFile;
         int bitDepth = 16;
@@ -81,11 +85,22 @@ namespace WaveVisualizer
         public Form1()
         {
             InitializeComponent();
+            //DoubleBuffered = true;
+            //   System.Reflection.PropertyInfo aProp =
+            //typeof(System.Windows.Forms.Control).GetProperty(
+            //      "DoubleBuffered",
+            //      System.Reflection.BindingFlags.NonPublic |
+            //      System.Reflection.BindingFlags.Instance);
+            //   aProp.SetValue(this.Controls[0], true, null);
+            this.DoubleBuffered = true;
             this.hScrollBar1.Visible = false;
             this.KeyPreview = true;
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
+            this.chart1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Chart1_MouseDown);
+            this.chart1.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Chart1_MouseUp);
 
         }
+        
 
         private void newChart()
         {
@@ -98,7 +113,6 @@ namespace WaveVisualizer
             bitsPerSample = waveFile.FmtChunk1.BitsPerSample;
             numChannels = waveFile.FmtChunk1.Channels;
             dataSize = rawSamples.Length / numChannels;
-
             // clear the chart series points
             chart1.Series.Clear();
             //Debug.WriteLine(rawSamples.Length);
@@ -188,20 +202,21 @@ namespace WaveVisualizer
             }
             //chart1.ChartAreas[0].AxisX.ScaleView.Position = selStart/sampleRate;
             chart1.ChartAreas[0].AxisX.Minimum = 0;
-            chart1.ChartAreas[0].AxisX.Maximum =  (dataSize)/ sampleRate;
+            chart1.ChartAreas[0].AxisX.Maximum =  ((dataSize)/ sampleRate) + 1;
             chart1.ChartAreas[0].AxisX.ScaleView.Zoom((double)selStart / sampleRate, (double)selEnd / sampleRate);
             
             this.hScrollBar1.Minimum = 0;
             this.hScrollBar1.SmallChange = sel == dataSize ? sel : sel/dataSize;
             this.hScrollBar1.LargeChange = sel == dataSize ? sel : sel/dataSize;
-            this.hScrollBar1.Maximum = dataSize - sel;
+            this.hScrollBar1.Maximum = dataSize - this.hScrollBar1.SmallChange;
             this.hScrollBar1.Visible = true;
         }
       
         
-        private void dft(int start, int end)
+        private void dft(long start, long end)
         {
-            int N = end - start;
+            long N = end - start;
+            fourierSamples = new ComplexNum[N];
             //int[] samples = rawSamples[start, end];
             for (int f = 0; f < N; f++)
             {
@@ -209,14 +224,59 @@ namespace WaveVisualizer
                 for (int t = 0; t < N; t++)
                 {
                     //ComplexNum getters/setters needed
-                    //fourierSamples[f].re += rawSamples[start + t] * Math.Cos((2 * Math.PI * t * f) / N);
-                    //fourierSamples[f].im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * t * f) / N);
+                    fourierSamples[f].Re += rawSamples[start + t] * Math.Cos((2 * Math.PI * t * f) / N);
+                    fourierSamples[f].Im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * t * f) / N);
                 }
-                //ComplexNum getters/setters needed
+                //Divide by N in idft
                 //fourierSamples[f].re = fourierSamples[f].re / N;
                 //fourierSamples[f].im = fourierSamples[f].im / N;
             }
             ///setup chart with fourier samples
+            fourierChart = new Chart2(fourierSamples, this.chart2);
+            
+        }
+        private double[] idft(ComplexNum[] A)
+        {
+            int n = A.Length;
+            double[] newSamples = new double[n];
+            var zeroThreshold = 1e-10;
+            for (int t = 0; t < n; t++)
+            {
+                double re = 0;
+                double im = 0;
+                for (int f = 0; f < n; f++)
+                {
+                    re += A[f].Re * Math.Cos((2 * Math.PI * t * f) / n);
+                    im += A[f].Im * Math.Sin((2 * Math.PI * t * f) / n);
+                }
+                if (Math.Abs(re) < zeroThreshold )//|| re < 0)
+                {
+                    re = 0;
+                }
+
+                if (Math.Abs(im) < zeroThreshold )//|| im < 0)
+                {
+                    im = 0;
+                }
+                newSamples[t] = (re + im)/n;
+            }
+            return newSamples;
+        }
+
+        private void applyFilter(double[] fWeights)
+        {
+            for(int i = 0; i < rawSamples.Length; i++)
+            {
+                short temp = 0;
+                for (int j = 0; j < fWeights.Length; j++)
+                {
+                    short rs = i + j >= rawSamples.Length ? (short)0 : rawSamples[i + j];
+                    temp += (short)(rs * fWeights[j]);
+                }
+                rawSamples[i] = temp;
+            }
+            refreshChart();
+
         }
 
         //event Handlers
@@ -279,9 +339,47 @@ namespace WaveVisualizer
         private void Button1_Click(object sender, EventArgs e)
         {
         }
-        private void Chart1_MouseDown(object sender, MouseEventArgs me)
+        private void Chart1_MouseDown(object sender, EventArgs e)
         {
 
+            MouseEventArgs me = (MouseEventArgs)e;
+            var chart = (Chart)sender;
+            //var xAxis = chart.ChartAreas[0].AxisX;
+            chart.ChartAreas[0].CursorX.SetCursorPixelPosition(new Point(me.X, me.Y), true);
+            //chartArea1.CursorY.SetCursorPixelPosition(new Point(me.X, me.Y), true);
+
+            double pX = chart.ChartAreas[0].CursorX.Position;
+            posXStart = (long)(pX * SR);
+            //Debug.WriteLine(pX * SR);
+        }
+        private void Chart1_MouseUp(object sender, EventArgs e)
+        {
+
+            MouseEventArgs me = (MouseEventArgs)e;
+            var chart = (Chart)sender;
+            //var xAxis = chart.ChartAreas[0].AxisX;
+            chart.ChartAreas[0].CursorX.SetCursorPixelPosition(new Point(me.X, me.Y), true);
+            double pX = chart.ChartAreas[0].CursorX.Position;
+
+            var posXBeg = posXStart;
+            var posXEnd = (long)(pX * SR);
+            //Debug.WriteLine(posXBeg + ":" + posXEnd);
+            //Debug.WriteLine(rawSamples.Length);
+            if (posXBeg > posXEnd)
+            {
+                posXStart = posXEnd;
+                posXFinish = posXBeg;
+                //  dft(posXFinish,posXStart);
+            }
+            else
+            {
+                posXStart = posXBeg;
+                posXFinish = posXEnd;
+                //dft(posXStart,posXFinish);
+            }
+        }
+        private void Chart1_Click(object sender, EventArgs e)
+        {
         }
         private void chart1_MouseWheel(object sender, MouseEventArgs e)
         {
@@ -304,7 +402,7 @@ namespace WaveVisualizer
                 }
                 else if (e.Delta > 0) // Scrolled up.
                 {
-                    if(Math.Abs(selEnd - selStart) > sampleRate*numChannels)
+                    if(Math.Abs(selEnd - selStart) > 10*numChannels)
                     {
                         //double xPos = xAxis.PixelPositionToValue(e.Location.X) * sampleRate;
                         double xPos = (selEnd - selStart) / 2;
@@ -319,18 +417,6 @@ namespace WaveVisualizer
                 }
             }
             catch { }
-        }
-        private void Chart1_Click(object sender, EventArgs e)
-        {
-            MouseEventArgs me = (MouseEventArgs)e;
-            var chart = (Chart)sender;
-            //var xAxis = chart.ChartAreas[0].AxisX;
-            var posXStart = chart.ChartAreas[0].CursorX.SelectionStart*sampleRate*numChannels;
-            var posXFinish = chart.ChartAreas[0].CursorX.SelectionEnd*sampleRate*numChannels;
-            //Debug.WriteLine(posXStart + ":" + posXFinish);
-            //var posXStart = xAxis.PixelPositionToValue(me.Location.X);
-            //var posXFinish = xAxis.PixelPositionToValue(me.Location.X);
-            //dft((int)posXStart, (int)posXFinish);
         }
 
         private void Form1_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
@@ -446,5 +532,24 @@ namespace WaveVisualizer
             refreshChart();
         }
 
+        private void dftButton_Click(object sender, EventArgs e)
+        {
+            dft(posXStart, posXFinish);
+        }
+
+        private void filterButton_Click(object sender, EventArgs e)
+        {
+            if(fourierChart!= null)
+            {
+                ComplexNum[] filter = fourierChart.generateFilter();
+                double[] filterWeights = idft(filter);
+                //foreach (var item in filterWeights)
+                //{
+                //    Debug.Write(item.ToString() + " ");
+                //}
+                applyFilter(filterWeights);
+                //Debug.WriteLine("\n^^^FilterWeights^^^");
+            }
+        }
     }
 }

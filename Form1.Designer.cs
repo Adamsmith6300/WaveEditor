@@ -28,12 +28,12 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea2 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend2 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea3 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend3 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series3 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea4 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend4 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series4 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -45,6 +45,8 @@
             this.stRec = new System.Windows.Forms.Button();
             this.sPlay = new System.Windows.Forms.Button();
             this.stPlay = new System.Windows.Forms.Button();
+            this.dftButton = new System.Windows.Forms.Button();
+            this.filterButton = new System.Windows.Forms.Button();
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.chart1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chart2)).BeginInit();
@@ -89,20 +91,20 @@
             // chart1
             // 
             this.chart1.BorderlineColor = System.Drawing.Color.DarkRed;
-            chartArea1.Name = "ChartArea1";
-            this.chart1.ChartAreas.Add(chartArea1);
-            legend1.Enabled = false;
-            legend1.Name = "Legend1";
-            this.chart1.Legends.Add(legend1);
+            chartArea3.Name = "ChartArea1";
+            this.chart1.ChartAreas.Add(chartArea3);
+            legend3.Enabled = false;
+            legend3.Name = "Legend1";
+            this.chart1.Legends.Add(legend3);
             this.chart1.Location = new System.Drawing.Point(0, 30);
             this.chart1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chart1.Name = "chart1";
-            series1.ChartArea = "ChartArea1";
-            series1.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.StepLine;
-            series1.Legend = "Legend1";
-            series1.Name = "Series1";
-            series1.XValueType = System.Windows.Forms.DataVisualization.Charting.ChartValueType.Time;
-            this.chart1.Series.Add(series1);
+            series3.ChartArea = "ChartArea1";
+            series3.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.StepLine;
+            series3.Legend = "Legend1";
+            series3.Name = "Series1";
+            series3.XValueType = System.Windows.Forms.DataVisualization.Charting.ChartValueType.Time;
+            this.chart1.Series.Add(series3);
             this.chart1.Size = new System.Drawing.Size(795, 259);
             this.chart1.TabIndex = 2;
             this.chart1.Text = "chart1";
@@ -110,18 +112,30 @@
             // 
             // chart2
             // 
-            chartArea2.Name = "ChartArea1";
-            this.chart2.ChartAreas.Add(chartArea2);
-            legend2.Name = "Legend1";
-            this.chart2.Legends.Add(legend2);
-            this.chart2.Location = new System.Drawing.Point(801, 30);
+            chartArea4.AxisX.IntervalOffset = 1D;
+            chartArea4.InnerPlotPosition.Auto = false;
+            chartArea4.InnerPlotPosition.Height = 85F;
+            chartArea4.InnerPlotPosition.Width = 87F;
+            chartArea4.InnerPlotPosition.X = 7F;
+            chartArea4.InnerPlotPosition.Y = 7F;
+            chartArea4.Name = "ChartArea1";
+            chartArea4.Position.Auto = false;
+            chartArea4.Position.Height = 94F;
+            chartArea4.Position.Width = 94F;
+            chartArea4.Position.X = 3F;
+            this.chart2.ChartAreas.Add(chartArea4);
+            legend4.Enabled = false;
+            legend4.Name = "Legend1";
+            this.chart2.Legends.Add(legend4);
+            this.chart2.Location = new System.Drawing.Point(0, 325);
             this.chart2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chart2.Name = "chart2";
-            series2.ChartArea = "ChartArea1";
-            series2.Legend = "Legend1";
-            series2.Name = "Series1";
-            this.chart2.Series.Add(series2);
-            this.chart2.Size = new System.Drawing.Size(406, 259);
+            series4.ChartArea = "ChartArea1";
+            series4.IsVisibleInLegend = false;
+            series4.Legend = "Legend1";
+            series4.Name = "Series1";
+            this.chart2.Series.Add(series4);
+            this.chart2.Size = new System.Drawing.Size(795, 349);
             this.chart2.TabIndex = 3;
             this.chart2.Text = "chart2";
             // 
@@ -135,7 +149,7 @@
             // 
             // sRec
             // 
-            this.sRec.Location = new System.Drawing.Point(829, 311);
+            this.sRec.Location = new System.Drawing.Point(801, 31);
             this.sRec.Name = "sRec";
             this.sRec.Size = new System.Drawing.Size(134, 38);
             this.sRec.TabIndex = 5;
@@ -145,7 +159,7 @@
             // 
             // stRec
             // 
-            this.stRec.Location = new System.Drawing.Point(981, 311);
+            this.stRec.Location = new System.Drawing.Point(941, 31);
             this.stRec.Name = "stRec";
             this.stRec.Size = new System.Drawing.Size(134, 38);
             this.stRec.TabIndex = 6;
@@ -155,7 +169,7 @@
             // 
             // sPlay
             // 
-            this.sPlay.Location = new System.Drawing.Point(829, 374);
+            this.sPlay.Location = new System.Drawing.Point(801, 75);
             this.sPlay.Name = "sPlay";
             this.sPlay.Size = new System.Drawing.Size(134, 38);
             this.sPlay.TabIndex = 7;
@@ -165,7 +179,7 @@
             // 
             // stPlay
             // 
-            this.stPlay.Location = new System.Drawing.Point(981, 374);
+            this.stPlay.Location = new System.Drawing.Point(941, 75);
             this.stPlay.Name = "stPlay";
             this.stPlay.Size = new System.Drawing.Size(134, 38);
             this.stPlay.TabIndex = 8;
@@ -173,11 +187,33 @@
             this.stPlay.UseVisualStyleBackColor = true;
             this.stPlay.Click += new System.EventHandler(this.stPlay_Click_1);
             // 
+            // dftButton
+            // 
+            this.dftButton.Location = new System.Drawing.Point(801, 325);
+            this.dftButton.Name = "dftButton";
+            this.dftButton.Size = new System.Drawing.Size(108, 38);
+            this.dftButton.TabIndex = 9;
+            this.dftButton.Text = "DFT";
+            this.dftButton.UseVisualStyleBackColor = true;
+            this.dftButton.Click += new System.EventHandler(this.dftButton_Click);
+            // 
+            // filterButton
+            // 
+            this.filterButton.Location = new System.Drawing.Point(801, 369);
+            this.filterButton.Name = "filterButton";
+            this.filterButton.Size = new System.Drawing.Size(108, 44);
+            this.filterButton.TabIndex = 10;
+            this.filterButton.Text = "Filter";
+            this.filterButton.UseVisualStyleBackColor = true;
+            this.filterButton.Click += new System.EventHandler(this.filterButton_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1207, 611);
+            this.ClientSize = new System.Drawing.Size(1207, 685);
+            this.Controls.Add(this.filterButton);
+            this.Controls.Add(this.dftButton);
             this.Controls.Add(this.stPlay);
             this.Controls.Add(this.sPlay);
             this.Controls.Add(this.stRec);
@@ -186,6 +222,7 @@
             this.Controls.Add(this.chart2);
             this.Controls.Add(this.chart1);
             this.Controls.Add(this.menuStrip1);
+            this.DoubleBuffered = true;
             this.MainMenuStrip = this.menuStrip1;
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "Form1";
@@ -212,6 +249,8 @@
         private System.Windows.Forms.Button stRec;
         private System.Windows.Forms.Button sPlay;
         private System.Windows.Forms.Button stPlay;
+        private System.Windows.Forms.Button dftButton;
+        private System.Windows.Forms.Button filterButton;
     }
 }
 

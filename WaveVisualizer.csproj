@@ -47,7 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ChartData.cs" />
+    <Compile Include="Chart2.cs" />
     <Compile Include="RWWaveFile.cs" />
     <Compile Include="ComplexNum.cs" />
     <Compile Include="Form1.cs">
