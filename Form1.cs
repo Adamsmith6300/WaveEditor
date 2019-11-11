@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using System.Threading;
 
 namespace WaveVisualizer
 {
@@ -43,6 +44,7 @@ namespace WaveVisualizer
         int bitDepth = 16;
         int SR = 22050;
         int multiplier = 1;
+        bool dialogOpen = false;
 
         public struct RecordData
         {
@@ -77,7 +79,7 @@ namespace WaveVisualizer
         public static extern bool PlayPause();
 
         [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool PlayStart(IntPtr p, int size, int d, int r);
+        public static extern bool PlayStart(IntPtr p, int size, int d, int r, int c);
         [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool PlayStop();
 
@@ -217,23 +219,48 @@ namespace WaveVisualizer
         {
             long N = end - start;
             fourierSamples = new ComplexNum[N];
-            //int[] samples = rawSamples[start, end];
-            for (int f = 0; f < N; f++)
+            int threadCount = 4;
+            ThreadStart[] childRefs = new ThreadStart[threadCount];
+            Thread[] childThreads = new Thread[threadCount];
+            long sectionNSize = (long) Math.Floor((double) N / threadCount);
+            
+            for (int i = 0; i < threadCount; i++)
+            {
+                long startN = i * sectionNSize;
+                long endN = startN + sectionNSize;
+                endN = i == threadCount - 1 ? N : endN;
+                childRefs[i] = new ThreadStart(() => dftThread(startN, endN, start, N));
+                childThreads[i] = new Thread(childRefs[i]);
+                childThreads[i].Start();
+            }
+            foreach(Thread thread in childThreads)
+            {
+                thread.Join();
+            }
+        }
+
+        private void dftThread(long startN, long endN, long start, long totalN)
+        {
+            //if (start >= totalN) return;
+            //Debug.WriteLine(fourierSamples.Length);
+            for (long f = startN; f < endN; f++)
             {
                 fourierSamples[f] = new ComplexNum();
-                for (int t = 0; t < N; t++)
+                for (long t = startN; t < endN; t++)
                 {
+
                     //ComplexNum getters/setters needed
-                    fourierSamples[f].Re += rawSamples[start + t] * Math.Cos((2 * Math.PI * t * f) / N);
-                    fourierSamples[f].Im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * t * f) / N);
+                    fourierSamples[f].Re += rawSamples[start + t] * Math.Cos((2 * Math.PI * t * f) / totalN);
+                    fourierSamples[f].Im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * t * f) / totalN);
+
                 }
+                //Debug.WriteLine(f + "%%%%%%%%%%%");
                 //Divide by N in idft
                 //fourierSamples[f].re = fourierSamples[f].re / N;
                 //fourierSamples[f].im = fourierSamples[f].im / N;
             }
-            ///setup chart with fourier samples
-            fourierChart = new Chart2(fourierSamples, this.chart2);
-            
+            //Debug.WriteLine("DONE!!!!!!!");
+            //Debug.WriteLine(startN+" " + endN+" "+totalN+" "+start);
         }
         private double[] idft(ComplexNum[] A)
         {
@@ -282,41 +309,57 @@ namespace WaveVisualizer
         //event Handlers
         private void sRec_Click_1(object sender, EventArgs e)
         {
-            OpenDialog();
-            StartRec(bitDepth, SR);
+            if (OpenDialog())
+            {
+                dialogOpen = true;
+                StartRec(bitDepth, SR);
+            } else
+            {
+                dialogOpen = false;
+            }
         }
         private void stRec_Click(object sender, EventArgs e)
         {
-            RecordData rd = StopRec();
-            byte[] data = new byte[rd.len];
-            //gets recorded data (samples)
-            Marshal.Copy(rd.ip, data, 0, (int)rd.len);
-            //gets wave fmt/riff data
-            WaveForm wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
-            waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), rd.len + 36, Encoding.ASCII.GetBytes("WAVE"),
-                Encoding.ASCII.GetBytes("fmt"), 16, (ushort)1, wf.nChannels, wf.nSamplesPerSec,
-                wf.nAvgBytesPerSec, wf.nBlockAlign, wf.wBitsPerSample,
-                Encoding.ASCII.GetBytes("data"), rd.len);
-            //sets up samples
-            if (waveFile.FmtChunk1.BitsPerSample == 16)
+            if (!dialogOpen)
             {
-                short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
-                for (int i = 0; i < temp.Length - 1; i++)
-                    temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
-                rawSamples = temp.Select(x => (x)).ToArray();
-                waveFile.DataChunk1.Data = rawSamples;
-                if (waveFile.DataChunk1.Data != null)
-                {
-                    sel = (int)waveFile.DataChunk1.DataSize;
-                    selEnd = (int)waveFile.DataChunk1.DataSize;
-                    newChart();
-                }
+                OpenDialog();
             }
+            RecordData rd = StopRec();
+                byte[] data = new byte[rd.len];
+                //gets recorded data (samples)
+                Marshal.Copy(rd.ip, data, 0, (int)rd.len);
+                //gets wave fmt/riff data
+                WaveForm wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
+                waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), rd.len + 36, Encoding.ASCII.GetBytes("WAVE"),
+                    Encoding.ASCII.GetBytes("fmt"), 16, (ushort)1, wf.nChannels, wf.nSamplesPerSec,
+                    wf.nAvgBytesPerSec, wf.nBlockAlign, wf.wBitsPerSample,
+                    Encoding.ASCII.GetBytes("data"), rd.len);
+                //sets up samples
+                if (waveFile.FmtChunk1.BitsPerSample == 16)
+                {
+                    short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                    for (int i = 0; i < temp.Length - 1; i++)
+                        temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
+                    rawSamples = temp.Select(x => (x)).ToArray();
+                    waveFile.DataChunk1.Data = rawSamples;
+                    if (waveFile.DataChunk1.Data != null)
+                    {
+                        sel = (int)waveFile.DataChunk1.DataSize;
+                        selEnd = (int)waveFile.DataChunk1.DataSize;
+                        newChart();
+                    }
+                }
+            
+            
         }
         private void sPlay_Click_1(object sender, EventArgs e)
         {
+            if (!dialogOpen)
+            {
+                OpenDialog();
+            }
             if (waveFile == null)
-                return;
+                    return;
             byte[] data = null;
             //preps samples for dll
             if (waveFile.FmtChunk1.BitsPerSample == 16)
@@ -325,16 +368,27 @@ namespace WaveVisualizer
                     .Select(x => Convert.ToInt16(x))
                     .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
             }
+            if (waveFile.FmtChunk1.BitsPerSample == 8)
+            {
+                data = rawSamples.Select(x => (short)(x * multiplier)).ToArray()
+                        .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
+            }
             //gets pointer to array, to be sent to dll
             IntPtr iptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte)) * data.Length);
             Marshal.Copy(data, 0, iptr, data.Length);
             //calls play in the dll, passing the pointer and play details
-            PlayStart(iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec);
+            Debug.WriteLine(data.Length + " " + (int)waveFile.FmtChunk1.BitsPerSample + " " + (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
+            PlayStart(iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
             Marshal.FreeHGlobal(iptr);
+
+
         }
         private void stPlay_Click_1(object sender, EventArgs e)
         {
-            PlayStop();
+            if (dialogOpen)
+            {
+              PlayStop();
+            }
         }
         private void Button1_Click(object sender, EventArgs e)
         {
@@ -535,6 +589,9 @@ namespace WaveVisualizer
         private void dftButton_Click(object sender, EventArgs e)
         {
             dft(posXStart, posXFinish);
+            ///setup chart with fourier samples
+            fourierChart = new Chart2(this.fourierSamples, this.chart2);
+            fourierChart.setupChart();
         }
 
         private void filterButton_Click(object sender, EventArgs e)

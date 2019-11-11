@@ -32,18 +32,20 @@ namespace WaveVisualizer
             this.fourierSamples = fourierSamples;
             this.frequencies = new int[fourierSamples.Length];
             this.amplitudes = new double[fourierSamples.Length];
+            this.nyquistLimit = this.frequencies.Length / 2;
+            this.chart2 = chart2;
+        }
 
-            //Debug.WriteLine(fourierSamples.Length);
+        public void setupChart()
+        {
             for (int i = 0; i < fourierSamples.Length; i++)
             {
                 this.frequencies[i] = i;
-                this.amplitudes[i] = fourierSamples[i].Re > 0 ? fourierSamples[i].Re:0;
+                //Debug.WriteLine(i+"HEEEEERREEEEEE"+ fourierSamples[i]);
+                this.amplitudes[i] = fourierSamples[i].Re > 0 ? fourierSamples[i].Re : 0;
                 //Debug.WriteLine(this.frequencies[i] + "---" + this.amplitudes[i]);
             }
-            this.nyquistLimit = this.frequencies.Length / 2;
-            this.chart2 = chart2;
             drawChart(chart2);
-
             //typeof(Chart).InvokeMember("DoubleBuffered", BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic, null, this.chart2, new object[] { true });
             this.chart2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Chart2_MouseDown);
             this.chart2.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Chart2_MouseUp);
