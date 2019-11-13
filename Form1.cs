@@ -225,80 +225,73 @@ namespace WaveVisualizer
              * replace rawSamples in dftThread with testSamples and remove 'start'
              */
             //N = testSamples.Length;
-            int threadCount = 2;
+            int threadCount = 4;
             N = (int)Math.Round((N / (double)threadCount),
              MidpointRounding.AwayFromZero) * threadCount;
             ThreadStart[] childRefs = new ThreadStart[threadCount];
             Thread[] childThreads = new Thread[threadCount];
             dftThreadSamples = new ComplexNum[threadCount][];
-            childRefs[0] = new ThreadStart(() => dftThread(0, start, N, threadCount));
+            long numberOfBins = N / threadCount;
+            childRefs[0] = new ThreadStart(() => dftThread(0, start, N, numberOfBins));
             childThreads[0] = new Thread(childRefs[0]);
             childThreads[0].Start();
-            childRefs[1] = new ThreadStart(() => dftThread(1, start, N, threadCount));
+            childRefs[1] = new ThreadStart(() => dftThread(1, start, N, numberOfBins));
             childThreads[1] = new Thread(childRefs[1]);
             childThreads[1].Start();
-            //childRefs[2] = new Threa dStart(() => dftThread(2, start, N, threadCount));
-            //childThreads[2] = new Thread(childRefs[2]);
-            //childThreads[2].Start();
-            //childRefs[3] = new ThreadStart(() => dftThread(3, start, N, threadCount));
-            //childThreads[3] = new Thread(childRefs[3]);
-            //childThreads[3].Start();
+            childRefs[2] = new ThreadStart(() => dftThread(2, start, N, numberOfBins));
+            childThreads[2] = new Thread(childRefs[2]);
+            childThreads[2].Start();
+            childRefs[3] = new ThreadStart(() => dftThread(3, start, N, numberOfBins));
+            childThreads[3] = new Thread(childRefs[3]);
+            childThreads[3].Start();
             foreach (Thread thread in childThreads)
             {
                 thread.Join();
             }
-            ComplexNum[] e = genComplexE(N);
-            combineDfts(e);
+            //ComplexNum[] e = genComplexE(N);
+            combineDfts(N, numberOfBins);
         }
 
-        private void dftThread(int startN, long start, long totalN, int threadCount)
+        private void dftThread(int threadIndex, long startRawSamples, long N, long chunkSize)
         {
-            ComplexNum[] dftSamples = new ComplexNum[totalN];
-            for (long f = 0; f < dftSamples.Length / threadCount; f++)
+            ComplexNum[] dftSamples = new ComplexNum[chunkSize];
+            Debug.WriteLine("Started thread" + threadIndex);
+            for (long f = 0; f < chunkSize; f++)
             {
                 dftSamples[f] = new ComplexNum();
-                for (long t = startN; t < totalN; t += threadCount)
+                for (int t = 0; t < N; t++)
                 {
                     //ComplexNum getters/setters needed
-                    dftSamples[f].Re += rawSamples[start + t] * Math.Cos((2 * Math.PI * (t/threadCount) * f) / (totalN/threadCount));
-                    dftSamples[f].Im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * (t/threadCount) * f) / (totalN/threadCount));
+                    dftSamples[f].Re += rawSamples[startRawSamples + t] * Math.Cos((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
+                    dftSamples[f].Im -= rawSamples[startRawSamples + t] * Math.Sin((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
 
                 }
             }
-            ComplexNum[] newDftSamples = new ComplexNum[totalN];
-            Array.Copy(dftSamples, 0, newDftSamples, 0, dftSamples.Length / threadCount);
-            Array.Copy(dftSamples, 0, newDftSamples, dftSamples.Length / threadCount, dftSamples.Length / threadCount);
-            //Array.Copy(dftSamples, 0, newDftSamples, 2 * (dftSamples.Length / threadCount), dftSamples.Length / threadCount);
-            //Array.Copy(dftSamples, 0, newDftSamples, 3 * (dftSamples.Length / threadCount), dftSamples.Length / threadCount);
-            dftThreadSamples[startN] = newDftSamples;
+            //Debug.WriteLine("DONE thread" + threadIndex);
+            dftThreadSamples[threadIndex] = dftSamples;
         }
 
-        private ComplexNum[] genComplexE(long N)
-        {
-            ComplexNum[] e = new ComplexNum[N];
-            for (int f = 0; f < N; f++)
-            {
-                e[f] = new ComplexNum();
-                e[f].Re = Math.Cos((2 * Math.PI * f) / N);
-                e[f].Im = Math.Sin((2 * Math.PI * f) / N);
-            }
-            return e;
-        }
+        //private ComplexNum[] genComplexE(long N)
+        //{
+        //    ComplexNum[] e = new ComplexNum[N];
+        //    for (int f = 0; f < N; f++)
+        //    {
+        //        e[f] = new ComplexNum();
+        //        e[f].Re = Math.Cos((2 * Math.PI * f) / N);
+        //        e[f].Im = Math.Sin((2 * Math.PI * f) / N);
+        //    }
+        //    return e;
+        //}
 
-        private void combineDfts(ComplexNum[] e)
+        private void combineDfts(long N, long numberOfBins)
         {
-            fourierSamples = new ComplexNum[e.Length];
-            for(int i = 0; i < fourierSamples.Length; i++)
-            {
-                fourierSamples[i] = new ComplexNum();
-                fourierSamples[i].Re = dftThreadSamples[0][i].Re;
-                fourierSamples[i].Im = dftThreadSamples[0][i].Im;
-                for (int j = 1; j < dftThreadSamples.Length; j++)
-                {
-                    fourierSamples[i].Re += (dftThreadSamples[j][i].Re * e[i].Re);
-                    fourierSamples[i].Im += (dftThreadSamples[j][i].Im * e[i].Im);
-                }
-            }
+            fourierSamples = new ComplexNum[N];
+            //Debug.WriteLine("Started copying threads");
+            Array.Copy(dftThreadSamples[0], 0, fourierSamples, 0, numberOfBins);
+            Array.Copy(dftThreadSamples[1], 0, fourierSamples, numberOfBins, numberOfBins);
+            Array.Copy(dftThreadSamples[2], 0, fourierSamples, numberOfBins * 2, numberOfBins);
+            Array.Copy(dftThreadSamples[3], 0, fourierSamples, numberOfBins * 3, numberOfBins);
+            //Debug.WriteLine("Done copying threads");
         }
 
         private double[] idft(ComplexNum[] A)
