@@ -33,8 +33,9 @@ namespace WaveVisualizer
         int selEnd = 0;
         int sel = 0;
 
-
+        short[] testSamples = {1, 1, 0, 0, 0, 1, 1, 0};
         ComplexNum[] fourierSamples;
+        ComplexNum[][] dftThreadSamples;
         Chart2 fourierChart;
         long posXStart;
         long posXFinish;
@@ -218,50 +219,88 @@ namespace WaveVisualizer
         private void dft(long start, long end)
         {
             long N = end - start;
-            fourierSamples = new ComplexNum[N];
-            int threadCount = 4;
+            /*
+             * for testSamples:
+             * uncomment N = testSamples length below
+             * replace rawSamples in dftThread with testSamples and remove 'start'
+             */
+            //N = testSamples.Length;
+            int threadCount = 2;
+            N = (int)Math.Round((N / (double)threadCount),
+             MidpointRounding.AwayFromZero) * threadCount;
             ThreadStart[] childRefs = new ThreadStart[threadCount];
             Thread[] childThreads = new Thread[threadCount];
-            long sectionNSize = (long) Math.Floor((double) N / threadCount);
-            
-            for (int i = 0; i < threadCount; i++)
-            {
-                long startN = i * sectionNSize;
-                long endN = startN + sectionNSize;
-                endN = i == threadCount - 1 ? N : endN;
-                childRefs[i] = new ThreadStart(() => dftThread(startN, endN, start, N));
-                childThreads[i] = new Thread(childRefs[i]);
-                childThreads[i].Start();
-            }
-            foreach(Thread thread in childThreads)
+            dftThreadSamples = new ComplexNum[threadCount][];
+            childRefs[0] = new ThreadStart(() => dftThread(0, start, N, threadCount));
+            childThreads[0] = new Thread(childRefs[0]);
+            childThreads[0].Start();
+            childRefs[1] = new ThreadStart(() => dftThread(1, start, N, threadCount));
+            childThreads[1] = new Thread(childRefs[1]);
+            childThreads[1].Start();
+            //childRefs[2] = new Threa dStart(() => dftThread(2, start, N, threadCount));
+            //childThreads[2] = new Thread(childRefs[2]);
+            //childThreads[2].Start();
+            //childRefs[3] = new ThreadStart(() => dftThread(3, start, N, threadCount));
+            //childThreads[3] = new Thread(childRefs[3]);
+            //childThreads[3].Start();
+            foreach (Thread thread in childThreads)
             {
                 thread.Join();
             }
+            ComplexNum[] e = genComplexE(N);
+            combineDfts(e);
         }
 
-        private void dftThread(long startN, long endN, long start, long totalN)
+        private void dftThread(int startN, long start, long totalN, int threadCount)
         {
-            //if (start >= totalN) return;
-            //Debug.WriteLine(fourierSamples.Length);
-            for (long f = startN; f < endN; f++)
+            ComplexNum[] dftSamples = new ComplexNum[totalN];
+            for (long f = 0; f < dftSamples.Length / threadCount; f++)
             {
-                fourierSamples[f] = new ComplexNum();
-                for (long t = startN; t < endN; t++)
+                dftSamples[f] = new ComplexNum();
+                for (long t = startN; t < totalN; t += threadCount)
                 {
-
                     //ComplexNum getters/setters needed
-                    fourierSamples[f].Re += rawSamples[start + t] * Math.Cos((2 * Math.PI * t * f) / totalN);
-                    fourierSamples[f].Im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * t * f) / totalN);
+                    dftSamples[f].Re += rawSamples[start + t] * Math.Cos((2 * Math.PI * (t/threadCount) * f) / (totalN/threadCount));
+                    dftSamples[f].Im -= rawSamples[start + t] * Math.Sin((2 * Math.PI * (t/threadCount) * f) / (totalN/threadCount));
 
                 }
-                //Debug.WriteLine(f + "%%%%%%%%%%%");
-                //Divide by N in idft
-                //fourierSamples[f].re = fourierSamples[f].re / N;
-                //fourierSamples[f].im = fourierSamples[f].im / N;
             }
-            //Debug.WriteLine("DONE!!!!!!!");
-            //Debug.WriteLine(startN+" " + endN+" "+totalN+" "+start);
+            ComplexNum[] newDftSamples = new ComplexNum[totalN];
+            Array.Copy(dftSamples, 0, newDftSamples, 0, dftSamples.Length / threadCount);
+            Array.Copy(dftSamples, 0, newDftSamples, dftSamples.Length / threadCount, dftSamples.Length / threadCount);
+            //Array.Copy(dftSamples, 0, newDftSamples, 2 * (dftSamples.Length / threadCount), dftSamples.Length / threadCount);
+            //Array.Copy(dftSamples, 0, newDftSamples, 3 * (dftSamples.Length / threadCount), dftSamples.Length / threadCount);
+            dftThreadSamples[startN] = newDftSamples;
         }
+
+        private ComplexNum[] genComplexE(long N)
+        {
+            ComplexNum[] e = new ComplexNum[N];
+            for (int f = 0; f < N; f++)
+            {
+                e[f] = new ComplexNum();
+                e[f].Re = Math.Cos((2 * Math.PI * f) / N);
+                e[f].Im = Math.Sin((2 * Math.PI * f) / N);
+            }
+            return e;
+        }
+
+        private void combineDfts(ComplexNum[] e)
+        {
+            fourierSamples = new ComplexNum[e.Length];
+            for(int i = 0; i < fourierSamples.Length; i++)
+            {
+                fourierSamples[i] = new ComplexNum();
+                fourierSamples[i].Re = dftThreadSamples[0][i].Re;
+                fourierSamples[i].Im = dftThreadSamples[0][i].Im;
+                for (int j = 1; j < dftThreadSamples.Length; j++)
+                {
+                    fourierSamples[i].Re += (dftThreadSamples[j][i].Re * e[i].Re);
+                    fourierSamples[i].Im += (dftThreadSamples[j][i].Im * e[i].Im);
+                }
+            }
+        }
+
         private double[] idft(ComplexNum[] A)
         {
             int n = A.Length;
@@ -377,7 +416,7 @@ namespace WaveVisualizer
             IntPtr iptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte)) * data.Length);
             Marshal.Copy(data, 0, iptr, data.Length);
             //calls play in the dll, passing the pointer and play details
-            Debug.WriteLine(data.Length + " " + (int)waveFile.FmtChunk1.BitsPerSample + " " + (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
+            //Debug.WriteLine(data.Length + " " + (int)waveFile.FmtChunk1.BitsPerSample + " " + (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
             PlayStart(iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
             Marshal.FreeHGlobal(iptr);
 
