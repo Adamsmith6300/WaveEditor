@@ -121,11 +121,12 @@ namespace WaveVisualizer
             //Debug.WriteLine(rawSamples.Length);
             var series = chart1.Series.Add("My Series");
             var series2 = chart1.Series.Add("My Series2");
-            series2.Color = Color.Red;
+            series.Color = Color.Purple;
             series.ChartType = SeriesChartType.Spline;
             series2.ChartType = SeriesChartType.Spline;
             //series.XValueType = ChartValueType.Double;
             var chartArea = chart1.ChartAreas[series.ChartArea];
+            chartArea.BackColor = Color.Black;
             chartArea.AxisX.LabelStyle.Format = "#.###";
             //remove grid lines
             chartArea.AxisX.MajorGrid.Enabled = false;
@@ -157,8 +158,15 @@ namespace WaveVisualizer
             chartArea.CursorX.IsUserSelectionEnabled = true;
             chartArea.CursorX.IsUserEnabled = true;
             selStart = 0;
-            selEnd = dataSize;
-            sel = dataSize;
+            selEnd = dataSize/numChannels;
+            sel = dataSize/numChannels;
+            maxSamples = chart1.Size.Width;
+            this.hScrollBar1.Value = selStart;
+            this.hScrollBar1.SmallChange = maxSamples;
+            this.hScrollBar1.LargeChange = maxSamples;
+            this.hScrollBar1.Maximum = (dataSize) - maxSamples;
+            this.hScrollBar1.Minimum = 0;
+            this.hScrollBar1.Visible = true;
             refreshChart();
             /*******************
              * END Initial setup
@@ -196,7 +204,6 @@ namespace WaveVisualizer
                 int jump = sel / maxSamples;
                 int start = Math.Max(0,selStart - sel);
                 int end = (selEnd + sel) > dataSize ? dataSize : selEnd + sel;
-
                 for (i = start; i < end; i += jump)
                 {
                     double sample = rawSamples[i];
@@ -208,11 +215,14 @@ namespace WaveVisualizer
             chart1.ChartAreas[0].AxisX.Maximum =  ((dataSize)/ sampleRate) + 1;
             chart1.ChartAreas[0].AxisX.ScaleView.Zoom((double)selStart / sampleRate, (double)selEnd / sampleRate);
             
-            this.hScrollBar1.Minimum = 0;
-            this.hScrollBar1.SmallChange = sel == dataSize ? sel : sel/dataSize;
-            this.hScrollBar1.LargeChange = sel == dataSize ? sel : sel/dataSize;
-            this.hScrollBar1.Maximum = dataSize - this.hScrollBar1.SmallChange;
-            this.hScrollBar1.Visible = true;
+            //this.hScrollBar1.Minimum = 0;
+            //this.hScrollBar1.SmallChange = sel == dataSize ? sel : sel/dataSize;
+            //this.hScrollBar1.LargeChange = sel == dataSize ? sel : sel/dataSize;
+            //this.hScrollBar1.Maximum = dataSize - this.hScrollBar1.SmallChange;
+            //this.hScrollBar1.SmallChange = maxSamples;
+            //this.hScrollBar1.LargeChange = maxSamples;
+            //this.hScrollBar1.Maximum = dataSize - maxSamples;
+            //this.hScrollBar1.Visible = true;
         }
       
         
@@ -255,7 +265,7 @@ namespace WaveVisualizer
         private void dftThread(int threadIndex, long startRawSamples, long N, long chunkSize)
         {
             ComplexNum[] dftSamples = new ComplexNum[chunkSize];
-            Debug.WriteLine("Started thread" + threadIndex);
+            //Debug.WriteLine("Started thread" + threadIndex);
             for (long f = 0; f < chunkSize; f++)
             {
                 dftSamples[f] = new ComplexNum();
@@ -433,8 +443,8 @@ namespace WaveVisualizer
             //var xAxis = chart.ChartAreas[0].AxisX;
             chart.ChartAreas[0].CursorX.SetCursorPixelPosition(new Point(me.X, me.Y), true);
             //chartArea1.CursorY.SetCursorPixelPosition(new Point(me.X, me.Y), true);
-
             double pX = chart.ChartAreas[0].CursorX.Position;
+            
             posXStart = (long)(pX * SR);
             //Debug.WriteLine(pX * SR);
         }
@@ -474,30 +484,30 @@ namespace WaveVisualizer
 
             try
             {
-                if (e.Delta < 0) // Scrolled down.
+                if (e.Delta < 0) // zoom out
                 {
                     if (Math.Abs(selEnd - selStart) < dataSize)
                     {
-                        selStart = Math.Max(0, selStart - (int)sampleRate);
-                        selEnd = Math.Min(dataSize, selEnd + (int)sampleRate);
+                        selStart = Math.Max(0, selStart - 1000);
+                        selEnd = Math.Min(dataSize, selEnd + 1000);
                         sel = Math.Abs(selEnd - selStart);
                         //Debug.WriteLine(selStart + ":" + selEnd + ":" + sel);
-                        refreshChart();
                         this.hScrollBar1.Value = selStart;
+                        refreshChart();
                     }
                 }
-                else if (e.Delta > 0) // Scrolled up.
+                else if (e.Delta > 0) // zoom in
                 {
-                    if(Math.Abs(selEnd - selStart) > 10*numChannels)
+                    if (Math.Abs(selEnd - selStart) > 5*maxSamples)
                     {
                         //double xPos = xAxis.PixelPositionToValue(e.Location.X) * sampleRate;
-                        double xPos = (selEnd - selStart) / 2;
-                        selStart = Math.Max(0, selStart + (int)sampleRate);
-                        selEnd = Math.Min(dataSize, selEnd - (int) sampleRate);
+                        //double xPos = (selEnd - selStart) / 2;
+                        selStart = Math.Max(0, selStart + 1000);
+                        selEnd = Math.Min(dataSize, selEnd - 1000);
                         sel = Math.Abs(selEnd - selStart);
                         //Debug.WriteLine(selStart + ":" + selEnd + ":" + sel);
-                        refreshChart();
                         this.hScrollBar1.Value = selStart;
+                        refreshChart();
                     }
                    
                 }
@@ -614,7 +624,10 @@ namespace WaveVisualizer
         private void hScrollBar1_Scroll(object sender, ScrollEventArgs e)
         {
             selStart = Math.Max(0, this.hScrollBar1.Value);
-            selEnd = Math.Min(dataSize, selStart + sel);
+            selEnd = selStart + sel;
+            //selEnd = Math.Min(dataSize, selStart + sel);
+            //Debug.WriteLine(this.hScrollBar1.Value);
+            //sel = Math.Abs(selEnd - selStart);
             refreshChart();
         }
 
@@ -639,6 +652,11 @@ namespace WaveVisualizer
                 applyFilter(filterWeights);
                 //Debug.WriteLine("\n^^^FilterWeights^^^");
             }
+        }
+
+        private void groupBox1_Enter(object sender, EventArgs e)
+        {
+
         }
     }
 }

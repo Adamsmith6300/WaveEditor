@@ -25,7 +25,7 @@ namespace WaveVisualizer
         private int nyquistLimit;
         private ComplexNum[] filter;
         Graphics dc;
-        Brush brush = new SolidBrush(Color.FromArgb(70, 200, 20, 20));
+        Brush brush = new SolidBrush(Color.FromArgb(120, 200, 20, 20));
 
         public Chart2(ComplexNum[] fourierSamples, Chart chart2)
         {
@@ -59,11 +59,11 @@ namespace WaveVisualizer
             //Set the chart type, Column;
             barSeries.ChartType = SeriesChartType.Column;
             //Assign it to the required area
-            //barSeries.ChartArea = "First";
+            barSeries.Color = Color.White;
             //Add the series to the chart
             chart2.Series.Add(barSeries);
             var chartArea = chart2.ChartAreas[0];
-
+            chartArea.BackColor = Color.Black;
             chartArea.CursorX.IsUserSelectionEnabled = false;
             chartArea.CursorX.IsUserEnabled = false;
             //remove scrollbar
@@ -133,10 +133,16 @@ namespace WaveVisualizer
             //chartArea.AxisX.Maximum
             double yTop = chartArea.AxisY.ValueToPixelPosition(chartArea.AxisY.Minimum);
             double yBottom = chartArea.AxisY.ValueToPixelPosition(chartArea.AxisY.Maximum);
-            //Debug.WriteLine(yBottom + "---" + yTop);
+            double xMin = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Minimum);
+            //Debug.WriteLine(xMin);
+            //Debug.WriteLine(pX);
+            if(pX < xMin)
+            {
+                pX = (int)xMin;
+            }
             r1.Y = (int)yBottom + 1;
             r1.Height = (int)(yTop - yBottom);
-            r1.X = pX + (int)chartArea.InnerPlotPosition.X;
+            r1.X = pX;//+ (int)chartArea.InnerPlotPosition.X;
             r1.Width = pX;
             //r2.X = 100;
             //r2.Y = 100;
@@ -161,6 +167,15 @@ namespace WaveVisualizer
 
                 var chartArea = chart.ChartAreas[0];
                 chartArea.CursorX.SetCursorPixelPosition(new Point(me.X, me.Y), true);
+                if(me.X > (chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit)))
+                {
+                    if (r1.X > (chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit)))
+                    {
+                        return;
+                    }
+                }
+                
+                //double xMin = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Minimum);
 
                 r1.Width = me.X - r1.X;
                 fLowBucket = (int)chartArea.AxisX.PixelPositionToValue(r1.X);
