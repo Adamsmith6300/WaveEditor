@@ -35,6 +35,7 @@ namespace WaveVisualizer
 
         short[] testSamples = {1, 1, 0, 0, 0, 1, 1, 0};
         ComplexNum[] fourierSamples;
+        short[] windowingSamples;
         ComplexNum[][] dftThreadSamples;
         Chart2 fourierChart;
         long posXStart;
@@ -42,6 +43,7 @@ namespace WaveVisualizer
 
         private string filename;
         private RWWaveFile waveFile;
+        private WaveForm wf;
         int bitDepth = 16;
         int SR = 22050;
         int multiplier = 1;
@@ -65,24 +67,26 @@ namespace WaveVisualizer
         }
 
 
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool OpenDialog();
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool CloseDialog();
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern RecordData StopRec();
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool StartRec(int d, int r);
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr GetWaveform();
-
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool SetWaveform(int bits, int rate, int blockAlign, int nChannels, int byteRate);
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool PlayPause();
-
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool PlayStart(IntPtr p, int size, int d, int r, int c);
-        [DllImport("as3.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool PlayStart(IntPtr p, int size, int d, int r, int blockAlign, int c, int byteRate);
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool PlayStop();
+        [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
+        public static extern RecordData mmxApplyFilter(double[] fWeights, int size, IntPtr pd, int dsize);
 
 
         public Form1()
@@ -101,9 +105,10 @@ namespace WaveVisualizer
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
             this.chart1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Chart1_MouseDown);
             this.chart1.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Chart1_MouseUp);
-
+            this.comboBox1.SelectedIndex = 0;
+            this.comboBox2.SelectedIndex = 0;
         }
-        
+
 
         private void newChart()
         {
@@ -238,6 +243,7 @@ namespace WaveVisualizer
             int threadCount = 4;
             N = (int)Math.Round((N / (double)threadCount),
              MidpointRounding.AwayFromZero) * threadCount;
+            applyWindowing(start, N * threadCount);
             ThreadStart[] childRefs = new ThreadStart[threadCount];
             Thread[] childThreads = new Thread[threadCount];
             dftThreadSamples = new ComplexNum[threadCount][];
@@ -272,26 +278,14 @@ namespace WaveVisualizer
                 for (int t = 0; t < N; t++)
                 {
                     //ComplexNum getters/setters needed
-                    dftSamples[f].Re += rawSamples[startRawSamples + t] * Math.Cos((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
-                    dftSamples[f].Im -= rawSamples[startRawSamples + t] * Math.Sin((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
+                    dftSamples[f].Re += windowingSamples[t] * Math.Cos((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
+                    dftSamples[f].Im -= windowingSamples[t] * Math.Sin((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
 
                 }
             }
             //Debug.WriteLine("DONE thread" + threadIndex);
             dftThreadSamples[threadIndex] = dftSamples;
         }
-
-        //private ComplexNum[] genComplexE(long N)
-        //{
-        //    ComplexNum[] e = new ComplexNum[N];
-        //    for (int f = 0; f < N; f++)
-        //    {
-        //        e[f] = new ComplexNum();
-        //        e[f].Re = Math.Cos((2 * Math.PI * f) / N);
-        //        e[f].Im = Math.Sin((2 * Math.PI * f) / N);
-        //    }
-        //    return e;
-        //}
 
         private void combineDfts(long N, long numberOfBins)
         {
@@ -332,6 +326,44 @@ namespace WaveVisualizer
             return newSamples;
         }
 
+        private void applyWindowing(long start, long N)
+        {
+            windowingSamples = new short[N];
+            double[] w = new double[N];
+            Array.Copy(rawSamples, start, windowingSamples, 0, N);
+            int selectedIndex = comboBox2.SelectedIndex;
+            long m = N / 2;
+            double r;
+            double pi = Math.PI;
+            switch (selectedIndex)
+            {
+                case 0:
+                    //rectangular
+                    break;
+                case 1:
+                    //hamming
+                    r = pi / m;
+                    for (long n = -m; n < m; n++)
+                    {
+                        w[m + n] = 0.54f + 0.46f * Math.Cos(n * r);
+                        windowingSamples[m + n] = (short)(w[m + n] * windowingSamples[m + n]);
+                    }
+                    break;
+                case 2:
+                    //hanning
+                    r = pi / (m + 1);
+                    for (long n = -m; n < m; n++)
+                    {
+                        w[m + n] = 0.5f + 0.5f * Math.Cos(n * r);
+                        windowingSamples[m + n] = (short)(w[m + n] * windowingSamples[m + n]);
+                    }
+                    break;
+                default:
+                    //rectangular
+                    break;
+            }
+        }
+
         private void applyFilter(double[] fWeights)
         {
             for(int i = 0; i < rawSamples.Length; i++)
@@ -345,7 +377,6 @@ namespace WaveVisualizer
                 rawSamples[i] = temp;
             }
             refreshChart();
-
         }
 
         //event Handlers
@@ -371,7 +402,7 @@ namespace WaveVisualizer
                 //gets recorded data (samples)
                 Marshal.Copy(rd.ip, data, 0, (int)rd.len);
                 //gets wave fmt/riff data
-                WaveForm wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
+                wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
                 waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), rd.len + 36, Encoding.ASCII.GetBytes("WAVE"),
                     Encoding.ASCII.GetBytes("fmt"), 16, (ushort)1, wf.nChannels, wf.nSamplesPerSec,
                     wf.nAvgBytesPerSec, wf.nBlockAlign, wf.wBitsPerSample,
@@ -419,8 +450,11 @@ namespace WaveVisualizer
             IntPtr iptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte)) * data.Length);
             Marshal.Copy(data, 0, iptr, data.Length);
             //calls play in the dll, passing the pointer and play details
-            //Debug.WriteLine(data.Length + " " + (int)waveFile.FmtChunk1.BitsPerSample + " " + (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
-            PlayStart(iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.Channels);
+            if (wf.Equals(default(WaveForm)))
+            {
+                bool isSet = SetWaveform((int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
+            }
+            PlayStart(iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
             Marshal.FreeHGlobal(iptr);
 
 
@@ -643,14 +677,60 @@ namespace WaveVisualizer
         {
             if(fourierChart!= null)
             {
+                int selectedIndex = comboBox1.SelectedIndex;
                 ComplexNum[] filter = fourierChart.generateFilter();
                 double[] filterWeights = idft(filter);
-                //foreach (var item in filterWeights)
-                //{
-                //    Debug.Write(item.ToString() + " ");
-                //}
-                applyFilter(filterWeights);
-                //Debug.WriteLine("\n^^^FilterWeights^^^");
+                switch (selectedIndex)
+                {
+                    case 0:
+                        {
+                            applyFilter(filterWeights);
+                            break;
+                        }
+                    case 1:
+                        {
+                            IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(short)) * rawSamples.Length);
+                            Marshal.Copy(rawSamples, 0, diptr, rawSamples.Length);
+                            RecordData rd = mmxApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
+                            Marshal.Copy(rd.ip, rawSamples, 0, (int)rd.len);
+                            waveFile.DataChunk1.Data = rawSamples;
+                            refreshChart();
+                            Marshal.FreeHGlobal(diptr);
+                            break;
+                        }
+                    case 2:
+                        {
+
+                            var watch = System.Diagnostics.Stopwatch.StartNew();
+                            applyFilter(filterWeights);
+                            watch.Stop();
+                            var elapsedBasic = watch.ElapsedMilliseconds;
+
+                            IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(short)) * rawSamples.Length);
+                            Marshal.Copy(rawSamples, 0, diptr, rawSamples.Length);
+                            var watchMMX = System.Diagnostics.Stopwatch.StartNew();
+                            RecordData rd = mmxApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
+                            Marshal.Copy(rd.ip, rawSamples, 0, (int)rd.len);
+                            waveFile.DataChunk1.Data = rawSamples;
+                            refreshChart();
+                            watchMMX.Stop();
+                            var elapsedMMX = watchMMX.ElapsedMilliseconds;
+                            Debug.WriteLine(elapsedBasic + ":" + elapsedMMX);
+                            double diff = (double)elapsedBasic / (double)elapsedMMX;
+                            diff = Math.Round(diff, 3);
+                            string box_msg = "MMX is " + diff.ToString() + " times faster than basic C#";
+                            string box_title = "MMX vs C# Convolution Performance";
+                            MessageBox.Show(box_msg, box_title);
+                            Marshal.FreeHGlobal(diptr);
+                            break;
+                        }
+                    default:
+                        {
+                            applyFilter(filterWeights);
+                            break;
+                        }
+                }
+                
             }
         }
 
