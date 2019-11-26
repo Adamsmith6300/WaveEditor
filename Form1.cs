@@ -243,7 +243,7 @@ namespace WaveVisualizer
             int threadCount = 4;
             N = (int)Math.Round((N / (double)threadCount),
              MidpointRounding.AwayFromZero) * threadCount;
-            applyWindowing(start, N * threadCount);
+            applyWindowing(start, N);
             ThreadStart[] childRefs = new ThreadStart[threadCount];
             Thread[] childThreads = new Thread[threadCount];
             dftThreadSamples = new ComplexNum[threadCount][];
@@ -368,13 +368,13 @@ namespace WaveVisualizer
         {
             for(int i = 0; i < rawSamples.Length; i++)
             {
-                short temp = 0;
+                double temp = 0;
                 for (int j = 0; j < fWeights.Length; j++)
                 {
                     short rs = i + j >= rawSamples.Length ? (short)0 : rawSamples[i + j];
-                    temp += (short)(rs * fWeights[j]);
+                    temp += (rs * fWeights[j]);
                 }
-                rawSamples[i] = temp;
+                rawSamples[i] = (short)temp;
             }
             refreshChart();
         }
@@ -479,8 +479,8 @@ namespace WaveVisualizer
             //chartArea1.CursorY.SetCursorPixelPosition(new Point(me.X, me.Y), true);
             double pX = chart.ChartAreas[0].CursorX.Position;
             
-            posXStart = (long)(pX * SR);
-            //Debug.WriteLine(pX * SR);
+            posXStart = (long)(pX * sampleRate);
+            //Debug.WriteLine("ONCLICK-"+ pX + ":" + sampleRate);
         }
         private void Chart1_MouseUp(object sender, EventArgs e)
         {
@@ -492,7 +492,7 @@ namespace WaveVisualizer
             double pX = chart.ChartAreas[0].CursorX.Position;
 
             var posXBeg = posXStart;
-            var posXEnd = (long)(pX * SR);
+            var posXEnd = (long)(pX * sampleRate);
             //Debug.WriteLine(posXBeg + ":" + posXEnd);
             //Debug.WriteLine(rawSamples.Length);
             if (posXBeg > posXEnd)
@@ -507,6 +507,8 @@ namespace WaveVisualizer
                 posXFinish = posXEnd;
                 //dft(posXStart,posXFinish);
             }
+
+            //Debug.WriteLine("positions- "+posXStart + ":" + posXFinish);
         }
         private void Chart1_Click(object sender, EventArgs e)
         {
