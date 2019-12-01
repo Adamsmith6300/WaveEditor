@@ -41,7 +41,8 @@ namespace WaveVisualizer
             for (int i = 0; i < fourierSamples.Length; i++)
             {
                 this.frequencies[i] = i;
-                this.amplitudes[i] = fourierSamples[i].Re > 0 ? fourierSamples[i].Re : 0;
+                //this.amplitudes[i] = fourierSamples[i].Re > 0 ? fourierSamples[i].Re : 0;
+                this.amplitudes[i] = fourierSamples[i].Re > 0 ? Math.Sqrt(Math.Pow(fourierSamples[i].Re, 2) + Math.Pow(fourierSamples[i].Im, 2)) : 0;
             }
             drawChart(chart2);
             this.chart2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Chart2_MouseDown);
@@ -59,13 +60,15 @@ namespace WaveVisualizer
             //Set the chart type, Column;
             barSeries.ChartType = SeriesChartType.Column;
             //Assign it to the required area
-            barSeries.Color = Color.White;
+            barSeries.Color = Color.LightBlue;
             //Add the series to the chart
             chart2.Series.Add(barSeries);
             var chartArea = chart2.ChartAreas[0];
             chartArea.BackColor = Color.Black;
             chartArea.CursorX.IsUserSelectionEnabled = false;
             chartArea.CursorX.IsUserEnabled = false;
+            chartArea.AxisY.Title = "Amplitude";
+            chartArea.AxisX.Title = "Frequency Bin #";
             //remove scrollbar
             chartArea.AxisX.ScrollBar.Enabled = false;
             //disable zooming

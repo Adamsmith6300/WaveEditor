@@ -44,15 +44,22 @@ namespace WaveVisualizer
         private string filename;
         private RWWaveFile waveFile;
         private WaveForm wf;
-        int bitDepth = 16;
-        int SR = 22050;
+        uint bitDepth = 16;
         int multiplier = 1;
         bool dialogOpen = false;
+        bool newRecording = false;
 
         public struct RecordData
         {
             public uint len;
             public IntPtr ip;
+        }
+
+        public struct FilterData
+        {
+            public uint len;
+            public IntPtr ip;
+            public double openCLElapsed;
         }
 
         public struct WaveForm
@@ -74,7 +81,7 @@ namespace WaveVisualizer
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern RecordData StopRec();
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool StartRec(int d, int r);
+        public static extern bool StartRec(uint bitDepth, uint sampleRate);
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr GetWaveform();
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
@@ -82,12 +89,11 @@ namespace WaveVisualizer
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool PlayPause();
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool PlayStart(IntPtr p, int size, int d, int r, int blockAlign, int c, int byteRate);
+        public static extern bool PlayStart(bool newRec, IntPtr p, int size, int d, int r, int blockAlign, int c, int byteRate);
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool PlayStop();
         [DllImport("CWaveApi.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.Cdecl)]
-        public static extern RecordData mmxApplyFilter(double[] fWeights, int size, IntPtr pd, int dsize);
-
+        public static extern FilterData openCLApplyFilter(double[] fWeights, int size, IntPtr pd, int dsize);
 
         public Form1()
         {
@@ -107,6 +113,10 @@ namespace WaveVisualizer
             this.chart1.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Chart1_MouseUp);
             this.comboBox1.SelectedIndex = 0;
             this.comboBox2.SelectedIndex = 0;
+            this.comboBox3.SelectedIndex = 0;
+            this.comboBox4.SelectedIndex = 0;
+            this.Text = "Wave Editor";
+            this.AutoSize = true;
         }
 
 
@@ -126,13 +136,15 @@ namespace WaveVisualizer
             //Debug.WriteLine(rawSamples.Length);
             var series = chart1.Series.Add("My Series");
             var series2 = chart1.Series.Add("My Series2");
-            series.Color = Color.Purple;
+            series.Color = Color.LightBlue;
             series.ChartType = SeriesChartType.Spline;
             series2.ChartType = SeriesChartType.Spline;
             //series.XValueType = ChartValueType.Double;
             var chartArea = chart1.ChartAreas[series.ChartArea];
             chartArea.BackColor = Color.Black;
             chartArea.AxisX.LabelStyle.Format = "#.###";
+            chartArea.AxisY.Title = "Amplitude";
+            chartArea.AxisX.Title = "Time(s)";
             //remove grid lines
             chartArea.AxisX.MajorGrid.Enabled = false;
             chartArea.AxisY.MajorGrid.Enabled = false;
@@ -219,7 +231,7 @@ namespace WaveVisualizer
             chart1.ChartAreas[0].AxisX.Minimum = 0;
             chart1.ChartAreas[0].AxisX.Maximum =  ((dataSize)/ sampleRate) + 1;
             chart1.ChartAreas[0].AxisX.ScaleView.Zoom((double)selStart / sampleRate, (double)selEnd / sampleRate);
-            
+           
             //this.hScrollBar1.Minimum = 0;
             //this.hScrollBar1.SmallChange = sel == dataSize ? sel : sel/dataSize;
             //this.hScrollBar1.LargeChange = sel == dataSize ? sel : sel/dataSize;
@@ -384,8 +396,38 @@ namespace WaveVisualizer
         {
             if (OpenDialog())
             {
+                int sampleRateIndex = comboBox3.SelectedIndex;
+                int quantizationIndex = comboBox4.SelectedIndex;
+                switch (sampleRateIndex)
+                {
+                    case 0:
+                        sampleRate = 11025;
+                        break;
+                    case 1:
+                        sampleRate = 22050;
+                        break;
+                    case 2:
+                        sampleRate = 44100;
+                        break;
+                    default:
+                        sampleRate = 44100;
+                        break;
+
+                }
+                switch (quantizationIndex)
+                {
+                    case 0:
+                        bitDepth = 8;
+                        break;
+                    case 1:
+                        bitDepth = 16;
+                        break;
+                    default:
+                        break;
+                }
                 dialogOpen = true;
-                StartRec(bitDepth, SR);
+                newRecording = true;
+                StartRec(bitDepth, sampleRate);
             } else
             {
                 dialogOpen = false;
@@ -398,32 +440,43 @@ namespace WaveVisualizer
                 OpenDialog();
             }
             RecordData rd = StopRec();
-                byte[] data = new byte[rd.len];
-                //gets recorded data (samples)
-                Marshal.Copy(rd.ip, data, 0, (int)rd.len);
-                //gets wave fmt/riff data
-                wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
-                waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), rd.len + 36, Encoding.ASCII.GetBytes("WAVE"),
+            byte[] data = new byte[rd.len];
+            //gets recorded data (samples)
+            Marshal.Copy(rd.ip, data, 0, (int)rd.len);
+            //gets wave fmt/riff data
+            wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
+            waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), rd.len + 36, Encoding.ASCII.GetBytes("WAVE"),
                     Encoding.ASCII.GetBytes("fmt"), 16, (ushort)1, wf.nChannels, wf.nSamplesPerSec,
                     wf.nAvgBytesPerSec, wf.nBlockAlign, wf.wBitsPerSample,
                     Encoding.ASCII.GetBytes("data"), rd.len);
-                //sets up samples
-                if (waveFile.FmtChunk1.BitsPerSample == 16)
-                {
-                    short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
-                    for (int i = 0; i < temp.Length - 1; i++)
-                        temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
-                    rawSamples = temp.Select(x => (x)).ToArray();
-                    waveFile.DataChunk1.Data = rawSamples;
-                    if (waveFile.DataChunk1.Data != null)
-                    {
-                        sel = (int)waveFile.DataChunk1.DataSize;
-                        selEnd = (int)waveFile.DataChunk1.DataSize;
-                        newChart();
-                    }
-                }
-            
-            
+            //sets up samples
+          
+            if (waveFile.FmtChunk1.BitsPerSample == 8)
+            {
+                //short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                //for (int i = 0; i < temp.Length - 1; i++)
+                //    temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
+                rawSamples = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                rawSamples = data.Select(x => (short)(x - 128)).ToArray();
+            }
+            else if (waveFile.FmtChunk1.BitsPerSample == 16)
+            {
+                short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                for (int i = 0; i < temp.Length - 1; i++)
+                    temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
+                rawSamples = new short[temp.Length];
+                rawSamples = temp.Select(x => (x)).ToArray();
+            }
+            //rawSamples = temp.Select(x => (x)).ToArray();
+            waveFile.DataChunk1.Data = rawSamples;
+            if (waveFile.DataChunk1.Data != null)
+            {
+                sel = (int)waveFile.DataChunk1.DataSize;
+                selEnd = (int)waveFile.DataChunk1.DataSize;
+                newChart();
+            }
+            this.Text = "new untitled recording (" + waveFile.FmtChunk1.BitsPerSample + "bits, "+ waveFile.FmtChunk1.SamplesPerSec+"Hz)";
+
         }
         private void sPlay_Click_1(object sender, EventArgs e)
         {
@@ -435,18 +488,18 @@ namespace WaveVisualizer
                     return;
             byte[] data = null;
             //preps samples for dll
+            if (waveFile.FmtChunk1.BitsPerSample == 8)
+            {
+                data = rawSamples.Select(x => (x)).ToArray()
+                        .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
+            }
             if (waveFile.FmtChunk1.BitsPerSample == 16)
             {
-                data = rawSamples.Select(x => (short)(x * multiplier)).ToArray()
+                data = rawSamples.Select(x => (x)).ToArray()
                     .Select(x => Convert.ToInt16(x))
                     .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
             }
-            if (waveFile.FmtChunk1.BitsPerSample == 8)
-            {
-                data = rawSamples.Select(x => (short)(x * multiplier)).ToArray()
-                        .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
-            }
-            //gets pointer to array, to be sent to dll
+            //gets pointer to array, for dll
             IntPtr iptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte)) * data.Length);
             Marshal.Copy(data, 0, iptr, data.Length);
             //calls play in the dll, passing the pointer and play details
@@ -454,10 +507,9 @@ namespace WaveVisualizer
             {
                 bool isSet = SetWaveform((int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
             }
-            PlayStart(iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
+            //Debug.WriteLine("bits:"+(int)waveFile.FmtChunk1.BitsPerSample+"srate:"+(int)waveFile.FmtChunk1.SamplesPerSec+"blcAl:"+ (int)waveFile.FmtChunk1.BlockAlign+"Ch:"+ (int)waveFile.FmtChunk1.Channels+"ByPS:"+(int)waveFile.FmtChunk1.AverageBytesPerSec);
+            PlayStart(newRecording, iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
             Marshal.FreeHGlobal(iptr);
-
-
         }
         private void stPlay_Click_1(object sender, EventArgs e)
         {
@@ -536,6 +588,7 @@ namespace WaveVisualizer
                 {
                     if (Math.Abs(selEnd - selStart) > 5*maxSamples)
                     {
+                        //chartArea.AxisX.ScaleView.SizeType = DateTimeIntervalType.Number;
                         //double xPos = xAxis.PixelPositionToValue(e.Location.X) * sampleRate;
                         //double xPos = (selEnd - selStart) / 2;
                         selStart = Math.Max(0, selStart + 1000);
@@ -605,6 +658,7 @@ namespace WaveVisualizer
         }
         private void pasteRawSamples(int posX)
         {
+            if (cutSamples == null || cutSamples.Length <= 0) return;
             int length = cutSamples.Length;
             short[] newRawSamples = new short[rawSamples.Length + length];
             //paste left side of cut into new arr
@@ -618,7 +672,6 @@ namespace WaveVisualizer
             //copy new raw samples into old raw samples variable
             Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
 
-            Debug.WriteLine(rawSamples[rawSamples.Length-1]);
             dataSize = rawSamples.Length / numChannels;
             //selEnd = selEnd - length;
             refreshChart();
@@ -640,6 +693,8 @@ namespace WaveVisualizer
                 sel = (int) waveFile.DataChunk1.DataSize;
                 selEnd = (int) waveFile.DataChunk1.DataSize;
                 newChart();
+                newRecording = false;
+                this.Text = fileDlg.FileName +" ("+ waveFile.FmtChunk1.BitsPerSample + "bits, " + waveFile.FmtChunk1.SamplesPerSec + "Hz)";
             }
         }
 
@@ -654,7 +709,9 @@ namespace WaveVisualizer
                 filename = saveFileDialog1.FileName;
                 waveFile.DataChunk1.Data = rawSamples;
                 waveFile.Write(filename);
+                this.Text = filename + " (" + waveFile.FmtChunk1.BitsPerSample + "bits, " + waveFile.FmtChunk1.SamplesPerSec + "Hz)";
             }
+
         }
 
         private void hScrollBar1_Scroll(object sender, ScrollEventArgs e)
@@ -693,8 +750,8 @@ namespace WaveVisualizer
                         {
                             IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(short)) * rawSamples.Length);
                             Marshal.Copy(rawSamples, 0, diptr, rawSamples.Length);
-                            RecordData rd = mmxApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
-                            Marshal.Copy(rd.ip, rawSamples, 0, (int)rd.len);
+                            FilterData fd = openCLApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
+                            Marshal.Copy(fd.ip, rawSamples, 0, (int)fd.len);
                             waveFile.DataChunk1.Data = rawSamples;
                             refreshChart();
                             Marshal.FreeHGlobal(diptr);
@@ -706,22 +763,29 @@ namespace WaveVisualizer
                             var watch = System.Diagnostics.Stopwatch.StartNew();
                             applyFilter(filterWeights);
                             watch.Stop();
-                            var elapsedBasic = watch.ElapsedMilliseconds;
+                            double elapsedBasic = (double)watch.ElapsedMilliseconds/1000.00;
 
                             IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(short)) * rawSamples.Length);
                             Marshal.Copy(rawSamples, 0, diptr, rawSamples.Length);
-                            var watchMMX = System.Diagnostics.Stopwatch.StartNew();
-                            RecordData rd = mmxApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
-                            Marshal.Copy(rd.ip, rawSamples, 0, (int)rd.len);
+                            FilterData fd = openCLApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
+                            Marshal.Copy(fd.ip, rawSamples, 0, (int)fd.len);
                             waveFile.DataChunk1.Data = rawSamples;
                             refreshChart();
-                            watchMMX.Stop();
-                            var elapsedMMX = watchMMX.ElapsedMilliseconds;
-                            Debug.WriteLine(elapsedBasic + ":" + elapsedMMX);
-                            double diff = (double)elapsedBasic / (double)elapsedMMX;
+                            var openCLElapsed = fd.openCLElapsed;
+
+                            double diff = elapsedBasic / openCLElapsed;
                             diff = Math.Round(diff, 3);
-                            string box_msg = "MMX is " + diff.ToString() + " times faster than basic C#";
-                            string box_title = "MMX vs C# Convolution Performance";
+                            string box_msg;
+                            string box_title = "OpenCL vs C# Convolution Performance";
+                            if (diff <= 0)
+                            {
+                                double negDiff = openCLElapsed / elapsedBasic;
+                                negDiff = Math.Round(diff, 3);
+                                box_msg = "OpenCL is " + negDiff.ToString() + " times slower than basic C#";
+                            } else
+                            {
+                                 box_msg = "OpenCL is " + diff.ToString() + " times faster than basic C#";
+                            }
                             MessageBox.Show(box_msg, box_title);
                             Marshal.FreeHGlobal(diptr);
                             break;
@@ -739,6 +803,12 @@ namespace WaveVisualizer
         private void groupBox1_Enter(object sender, EventArgs e)
         {
 
+        }
+
+        private void newEditorToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var info = new System.Diagnostics.ProcessStartInfo(Application.ExecutablePath);
+            System.Diagnostics.Process.Start(info);
         }
     }
 }
