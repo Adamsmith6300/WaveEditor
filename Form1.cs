@@ -25,22 +25,16 @@ namespace WaveVisualizer
         uint bitsPerSample;
         int dataSize;
         ushort numChannels;
-
-        //int maxChartValY = 100000;
-        //int minChartValY = -100000;
-
         int selStart = 0;
         int selEnd = 0;
         int sel = 0;
-
-        short[] testSamples = {1, 1, 0, 0, 0, 1, 1, 0};
+        //short[] testSamples = {1, 1, 0, 0, 0, 1, 1, 0};
         ComplexNum[] fourierSamples;
         short[] windowingSamples;
         ComplexNum[][] dftThreadSamples;
         Chart2 fourierChart;
         long posXStart;
         long posXFinish;
-
         private string filename;
         private RWWaveFile waveFile;
         private WaveForm wf;
@@ -48,6 +42,7 @@ namespace WaveVisualizer
         int multiplier = 1;
         bool dialogOpen = false;
         bool newRecording = false;
+        double zeroThreshold = 1e-10;
 
         public struct RecordData
         {
@@ -115,6 +110,7 @@ namespace WaveVisualizer
             this.comboBox2.SelectedIndex = 0;
             this.comboBox3.SelectedIndex = 0;
             this.comboBox4.SelectedIndex = 0;
+            this.comboBox5.SelectedIndex = 0;
             this.Text = "Wave Editor";
             this.AutoSize = true;
         }
@@ -242,8 +238,34 @@ namespace WaveVisualizer
             //this.hScrollBar1.Visible = true;
         }
       
+        private void dftSingle(long start, long end)
+        {
+            long N = end - start;
+            fourierSamples = new ComplexNum[N];
+            applyWindowing(start, N);
+            for (long f = 0; f < N; f++)
+            {
+                fourierSamples[f] = new ComplexNum();
+                for (int t = 0; t < N; t++)
+                {
+                    //ComplexNum getters/setters needed
+                    fourierSamples[f].Re += windowingSamples[t] * Math.Cos((2 * Math.PI * t * f ) / N);
+                    fourierSamples[f].Im -= windowingSamples[t] * Math.Sin((2 * Math.PI * t * f ) / N);
+                }
+                if (Math.Abs(fourierSamples[f].Re) < zeroThreshold)
+                {
+                    fourierSamples[f].Re = 0;
+                }
+
+                if (Math.Abs(fourierSamples[f].Im) < zeroThreshold)
+                {
+                    fourierSamples[f].Im = 0;
+                }
+            }
+        }
         
-        private void dft(long start, long end)
+
+        private void dftMulti(long start, long end)
         {
             long N = end - start;
             /*
@@ -260,16 +282,16 @@ namespace WaveVisualizer
             Thread[] childThreads = new Thread[threadCount];
             dftThreadSamples = new ComplexNum[threadCount][];
             long numberOfBins = N / threadCount;
-            childRefs[0] = new ThreadStart(() => dftThread(0, start, N, numberOfBins));
+            childRefs[0] = new ThreadStart(() => dftThreadProc(0, start, N, numberOfBins));
             childThreads[0] = new Thread(childRefs[0]);
             childThreads[0].Start();
-            childRefs[1] = new ThreadStart(() => dftThread(1, start, N, numberOfBins));
+            childRefs[1] = new ThreadStart(() => dftThreadProc(1, start, N, numberOfBins));
             childThreads[1] = new Thread(childRefs[1]);
             childThreads[1].Start();
-            childRefs[2] = new ThreadStart(() => dftThread(2, start, N, numberOfBins));
+            childRefs[2] = new ThreadStart(() => dftThreadProc(2, start, N, numberOfBins));
             childThreads[2] = new Thread(childRefs[2]);
             childThreads[2].Start();
-            childRefs[3] = new ThreadStart(() => dftThread(3, start, N, numberOfBins));
+            childRefs[3] = new ThreadStart(() => dftThreadProc(3, start, N, numberOfBins));
             childThreads[3] = new Thread(childRefs[3]);
             childThreads[3].Start();
             foreach (Thread thread in childThreads)
@@ -280,7 +302,7 @@ namespace WaveVisualizer
             combineDfts(N, numberOfBins);
         }
 
-        private void dftThread(int threadIndex, long startRawSamples, long N, long chunkSize)
+        private void dftThreadProc(int threadIndex, long startRawSamples, long N, long chunkSize)
         {
             ComplexNum[] dftSamples = new ComplexNum[chunkSize];
             //Debug.WriteLine("Started thread" + threadIndex);
@@ -293,6 +315,15 @@ namespace WaveVisualizer
                     dftSamples[f].Re += windowingSamples[t] * Math.Cos((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
                     dftSamples[f].Im -= windowingSamples[t] * Math.Sin((2 * Math.PI * t * (f+(threadIndex*chunkSize))) / N);
 
+                }
+                if (Math.Abs(dftSamples[f].Re) < zeroThreshold)
+                {
+                    dftSamples[f].Re = 0;
+                }
+
+                if (Math.Abs(dftSamples[f].Im) < zeroThreshold)
+                {
+                    dftSamples[f].Im = 0;
                 }
             }
             //Debug.WriteLine("DONE thread" + threadIndex);
@@ -383,7 +414,14 @@ namespace WaveVisualizer
                 double temp = 0;
                 for (int j = 0; j < fWeights.Length; j++)
                 {
-                    short rs = i + j >= rawSamples.Length ? (short)0 : rawSamples[i + j];
+                    short rs = 0;
+                    if(i + j >= rawSamples.Length)
+                    {
+                        rs = (short)0;
+                    } else
+                    {
+                        rs = rawSamples[i + j];
+                    }
                     temp += (rs * fWeights[j]);
                 }
                 rawSamples[i] = (short)temp;
@@ -545,22 +583,17 @@ namespace WaveVisualizer
 
             var posXBeg = posXStart;
             var posXEnd = (long)(pX * sampleRate);
-            //Debug.WriteLine(posXBeg + ":" + posXEnd);
-            //Debug.WriteLine(rawSamples.Length);
             if (posXBeg > posXEnd)
             {
                 posXStart = posXEnd;
                 posXFinish = posXBeg;
-                //  dft(posXFinish,posXStart);
             }
             else
             {
                 posXStart = posXBeg;
                 posXFinish = posXEnd;
-                //dft(posXStart,posXFinish);
             }
-
-            //Debug.WriteLine("positions- "+posXStart + ":" + posXFinish);
+            if (posXFinish > rawSamples.Length) posXFinish = rawSamples.Length - 1;
         }
         private void Chart1_Click(object sender, EventArgs e)
         {
@@ -644,7 +677,12 @@ namespace WaveVisualizer
             //copy new raw samples into old raw samples variable
             Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
             dataSize = rawSamples.Length / numChannels;
-            //selEnd = selEnd - length;
+            DataFormats.Format myFormat = DataFormats.GetFormat("cutData");
+            ClipboardData cd = new ClipboardData();
+            cd.Sr = this.sampleRate;
+            cd.Cs = cutSamples;
+            DataObject myDataObject = new DataObject(myFormat.Name, cd);
+            Clipboard.SetDataObject(myDataObject);
             refreshChart();
         }
         private void copyRawSamples(int posXStart, int posXFinish)
@@ -653,28 +691,68 @@ namespace WaveVisualizer
             int length = (int)Math.Abs(posXFinish - posXStart);
             cutSamples = new short[length];
             Array.Copy(rawSamples, posXStart, cutSamples, 0, length);
-            //selEnd = selEnd - length;
-            //refreshChart();
+
+            DataFormats.Format myFormat = DataFormats.GetFormat("cutData");
+            ClipboardData cd = new ClipboardData();
+            cd.Sr = this.sampleRate;
+            cd.Cs = cutSamples;
+            DataObject myDataObject = new DataObject(myFormat.Name, cd);
+            Clipboard.SetDataObject(myDataObject);
         }
         private void pasteRawSamples(int posX)
         {
-            if (cutSamples == null || cutSamples.Length <= 0) return;
-            int length = cutSamples.Length;
-            short[] newRawSamples = new short[rawSamples.Length + length];
-            //paste left side of cut into new arr
-            Array.Copy(rawSamples, 0, newRawSamples, 0, posX);
-            //paste cutout section
-            Array.Copy(cutSamples, 0, newRawSamples, posX+1, cutSamples.Length);
-            //paste right side of cut int arr
-            Array.Copy(rawSamples, posX, newRawSamples, (posX+length), rawSamples.Length-posX);
-            //reinitialize rawsamples
-            rawSamples = new short[newRawSamples.Length];
-            //copy new raw samples into old raw samples variable
-            Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
+            DataFormats.Format myFormat = DataFormats.GetFormat("cutData");
+            IDataObject myRetrievedObject = Clipboard.GetDataObject();
+            ClipboardData csData = (ClipboardData)myRetrievedObject.GetData(myFormat.Name);
 
-            dataSize = rawSamples.Length / numChannels;
-            //selEnd = selEnd - length;
-            refreshChart();
+            if (csData != null)
+            {
+                if (csData.Cs == null || csData.Cs.Length <= 0 || csData.Sr <= 0) return;
+
+                int length = csData.Cs.Length;
+                short[] newCutSamples = csData.Cs;
+                if (csData.Sr > this.sampleRate)
+                {
+                    //downSample
+
+                }
+                if (csData.Sr < this.sampleRate)
+                {
+                    //upSample
+                    newCutSamples = upSample(csData);
+                }
+
+                short[] newRawSamples = new short[rawSamples.Length + length];
+                //paste left side of cut into new arr
+                Array.Copy(rawSamples, 0, newRawSamples, 0, posX);
+                //paste cutout section
+                Array.Copy(newCutSamples, 0, newRawSamples, posX + 1, newCutSamples.Length);
+                //paste right side of cut int arr
+                Array.Copy(rawSamples, posX, newRawSamples, (posX + length), rawSamples.Length - posX);
+                //reinitialize rawsamples
+                rawSamples = new short[newRawSamples.Length];
+                //copy new raw samples into old raw samples variable
+                Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
+
+                dataSize = rawSamples.Length / numChannels;
+                //selEnd = selEnd - length;
+                refreshChart();
+            }
+            
+        }
+
+        private short[] upSample(ClipboardData csData)
+        {
+            int factor = (int)(this.sampleRate / csData.Sr);
+            short[] newSamples = new short[csData.Cs.Length * factor];
+            for(int i = 0; i < csData.Cs.Length; ++i)
+            {
+                for(int j = 0; j < factor; ++j)
+                {
+                    newSamples[(i * factor) + j] = csData.Cs[i];
+                }
+            }
+            return newSamples;
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
@@ -726,7 +804,47 @@ namespace WaveVisualizer
 
         private void dftButton_Click(object sender, EventArgs e)
         {
-            dft(posXStart, posXFinish);
+            int selectedDFTIndex = comboBox5.SelectedIndex;
+            switch (selectedDFTIndex)
+            {
+                case 0:
+                    dftSingle(posXStart, posXFinish);
+                    break;
+                case 1:
+                    dftMulti(posXStart, posXFinish);
+                    break;
+                case 2:
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    dftSingle(posXStart, posXFinish);
+                    watch.Stop();
+                    double elapsedSingle = (double)watch.ElapsedMilliseconds / 1000.00;
+
+                    var watchMulti = System.Diagnostics.Stopwatch.StartNew();
+                    dftMulti(posXStart, posXFinish);
+                    double elapsedMulti = (double)watchMulti.ElapsedMilliseconds / 1000.00;
+
+
+                    double diff = elapsedSingle / elapsedMulti;
+                    diff = Math.Round(diff, 3);
+                    string box_msg;
+                    string box_title = "Single vs Multithread DFT Performance";
+                    if (diff <= 0)
+                    {
+                        double invDiff = elapsedMulti / elapsedSingle;
+                        invDiff = Math.Round(diff, 3);
+                        box_msg = "Multithread is " + invDiff.ToString() + " times slower than Single thread";
+                    }
+                    else
+                    {
+                        box_msg = "Multithread is " + diff.ToString() + " times faster than Single thread";
+                    }
+                    MessageBox.Show(box_msg, box_title);
+
+
+                    break;
+
+            }
+
             ///setup chart with fourier samples
             fourierChart = new Chart2(this.fourierSamples, this.chart2);
             fourierChart.setupChart();

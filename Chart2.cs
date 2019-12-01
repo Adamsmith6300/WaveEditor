@@ -25,7 +25,7 @@ namespace WaveVisualizer
         private int nyquistLimit;
         private ComplexNum[] filter;
         Graphics dc;
-        Brush brush = new SolidBrush(Color.FromArgb(120, 200, 20, 20));
+        Brush brush = new SolidBrush(Color.FromArgb(255, 255, 0, 255));
 
         public Chart2(ComplexNum[] fourierSamples, Chart chart2)
         {
@@ -34,6 +34,8 @@ namespace WaveVisualizer
             this.amplitudes = new double[fourierSamples.Length];
             this.nyquistLimit = this.frequencies.Length / 2;
             this.chart2 = chart2;
+            this.fHighBucket = fourierSamples.Length;
+            this.fLowBucket = 0;
         }
 
         public void setupChart()
@@ -41,7 +43,6 @@ namespace WaveVisualizer
             for (int i = 0; i < fourierSamples.Length; i++)
             {
                 this.frequencies[i] = i;
-                //this.amplitudes[i] = fourierSamples[i].Re > 0 ? fourierSamples[i].Re : 0;
                 this.amplitudes[i] = fourierSamples[i].Re > 0 ? Math.Sqrt(Math.Pow(fourierSamples[i].Re, 2) + Math.Pow(fourierSamples[i].Im, 2)) : 0;
             }
             drawChart(chart2);
@@ -77,7 +78,6 @@ namespace WaveVisualizer
             chartArea.CursorY.LineWidth = 0;
             r1 = new Rectangle();
             r2 = new Rectangle();
-            
         }
 
         public ComplexNum[] generateFilter()
@@ -91,34 +91,31 @@ namespace WaveVisualizer
                     if (i >= fLowBucket && i <= fHighBucket)
                     {
                         this.filter[i] = new ComplexNum();
-                        this.filter[i].Re = 0.0;
-                        this.filter[i].Im = 0.0;
+                        this.filter[i].Re = 1.0;
+                        this.filter[i].Im = 1.0;
                         if (aliasIndex < this.filter.Length)
                         {
                             this.filter[aliasIndex] = new ComplexNum();
-                            this.filter[aliasIndex].Re = 0.0;
-                            this.filter[aliasIndex].Im = 0.0;
+                            this.filter[aliasIndex].Re = 1.0;
+                            this.filter[aliasIndex].Im = 1.0;
                         }
                     }
                     else
                     {
                         this.filter[i] = new ComplexNum();
-                        this.filter[i].Re = 1.0;
-                        this.filter[i].Im = 1.0;
+                        this.filter[i].Re = 0.0;
+                        this.filter[i].Im = 0.0;
                         if (aliasIndex < this.filter.Length)
                         {
                             this.filter[aliasIndex] = new ComplexNum(); 
-                            this.filter[aliasIndex].Re = 1.0;
-                            this.filter[aliasIndex].Im = 1.0;
+                            this.filter[aliasIndex].Re = 0.0;
+                            this.filter[aliasIndex].Im = 0.0;
                         }
                     }
                 }
-                //for(int j = 0; j < this.filter.Length; j++)
-                //{
-                //    Debug.Write("{"+this.filter[j].Re + ", "+ this.filter[j].Im+"} ");
-                //}
-                //Debug.WriteLine("\n^^^Filter^^^");
             }
+            this.fHighBucket = fourierSamples.Length;
+            this.fLowBucket = 0;
             return this.filter;
             
         }
@@ -132,11 +129,12 @@ namespace WaveVisualizer
 
             chartArea.CursorX.SetCursorPixelPosition(new Point(me.X, me.Y), true);
             int pX = (int)me.X;
-            //chartArea.AxisX.Minimum = 0.00;
-            //chartArea.AxisX.Maximum
+            int pX2 = 0;
+
             double yTop = chartArea.AxisY.ValueToPixelPosition(chartArea.AxisY.Minimum);
             double yBottom = chartArea.AxisY.ValueToPixelPosition(chartArea.AxisY.Maximum);
             double xMin = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Minimum);
+            double xMax = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Maximum);
             //Debug.WriteLine(xMin);
             //Debug.WriteLine(pX);
             if(pX < xMin)
@@ -147,19 +145,16 @@ namespace WaveVisualizer
             r1.Height = (int)(yTop - yBottom);
             r1.X = pX;//+ (int)chartArea.InnerPlotPosition.X;
             r1.Width = pX;
-            //r2.X = 100;
-            //r2.Y = 100;
-            //r2.Width = 200;
-            //r2.Height = 300;
+            r2.X = (int)xMax - pX + (int)xMin;
+            r2.Y = (int)yBottom + 1;
+            r2.Width = pX2;
+            r2.Height = (int)(yTop - yBottom);
 
-            //e.ChartGraphics.Graphics.DrawRectangle(new Pen(Color.Red, 3), r1);
-            //e.ChartGraphics.Graphics.DrawRectangle(new Pen(Color.Black, 5), r2);
+            //dc.FillRectangle(brush, r2);
         }
         private void Chart2_MouseUp(object sender, EventArgs e)
         {
             this.chartClicked = false;
-            //e.ChartGraphics.Graphics.DrawRectangle(new Pen(Color.Red, 3), r1);
-            //e.ChartGraphics.Graphics.DrawRectangle(new Pen(Color.Black, 5), r2);
         }
         private void Chart2_MouseMove(object sender, EventArgs e)
         {
@@ -170,31 +165,27 @@ namespace WaveVisualizer
 
                 var chartArea = chart.ChartAreas[0];
                 chartArea.CursorX.SetCursorPixelPosition(new Point(me.X, me.Y), true);
-                if(me.X > (chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit)))
+                int pX = (int)me.X;
+                if (pX > (chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit)))
                 {
                     if (r1.X > (chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit)))
                     {
                         return;
                     }
+                    pX = (int)chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit);
                 }
                 
-                //double xMin = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Minimum);
-
-                r1.Width = me.X - r1.X;
+                r1.Width = pX - r1.X;
                 fLowBucket = (int)chartArea.AxisX.PixelPositionToValue(r1.X);
                 fHighBucket = ((int)chartArea.AxisX.PixelPositionToValue(r1.Width + r1.X));
                 if(fHighBucket >= this.nyquistLimit)
                 {
                     r1.Width = (int)(chartArea.AxisX.ValueToPixelPosition(this.nyquistLimit) - r1.X);
                 }
+                r2.X = r2.Right - r1.Width;
+                r2.Width = r1.Width;
                 dc.FillRectangle(brush, r1);
-                //draw rect backwards
-                //if (me.X < r1.X)
-                //{
-                //    int temp = r1.X;
-                //    r1.X = me.X;
-                //    r1.Width = (temp + (int)chartArea.InnerPlotPosition.X) - me.X;
-                //}
+                dc.FillRectangle(brush, r2);
 
             }
         }
