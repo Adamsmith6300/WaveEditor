@@ -9,11 +9,11 @@ namespace WaveVisualizer
     [Serializable]
     public class ClipboardData : Object
     {
-        uint sr; 
-        short[] cs; 
+        uint sr;
+        double[] cs; 
         public ClipboardData(){}
 
         public uint Sr { get; set; }
-        public short[] Cs { get; set; }
+        public double[] Cs { get; set; }
     }
 }

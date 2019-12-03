@@ -11,7 +11,7 @@ using System.Windows.Forms.DataVisualization.Charting;
 
 namespace WaveVisualizer
 {
-    class Chart2
+    class FourierChart
     {
         private ComplexNum[] fourierSamples;
         private int[] frequencies;
@@ -25,9 +25,9 @@ namespace WaveVisualizer
         private int nyquistLimit;
         private ComplexNum[] filter;
         Graphics dc;
-        Brush brush = new SolidBrush(Color.FromArgb(255, 255, 0, 255));
+        Brush brush = new SolidBrush(Color.FromArgb(255, 220, 20, 60));
 
-        public Chart2(ComplexNum[] fourierSamples, Chart chart2)
+        public FourierChart(ComplexNum[] fourierSamples, Chart chart2)
         {
             this.fourierSamples = fourierSamples;
             this.frequencies = new int[fourierSamples.Length];
@@ -43,7 +43,7 @@ namespace WaveVisualizer
             for (int i = 0; i < fourierSamples.Length; i++)
             {
                 this.frequencies[i] = i;
-                this.amplitudes[i] = fourierSamples[i].Re > 0 ? Math.Sqrt(Math.Pow(fourierSamples[i].Re, 2) + Math.Pow(fourierSamples[i].Im, 2)) : 0;
+                this.amplitudes[i] = fourierSamples[i].Re > 0.1 ? Math.Sqrt(Math.Pow(fourierSamples[i].Re, 2) + Math.Pow(fourierSamples[i].Im, 2)) : 0;
             }
             drawChart(chart2);
             this.chart2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Chart2_MouseDown);
@@ -61,7 +61,7 @@ namespace WaveVisualizer
             //Set the chart type, Column;
             barSeries.ChartType = SeriesChartType.Column;
             //Assign it to the required area
-            barSeries.Color = Color.LightBlue;
+            barSeries.Color = Color.FromArgb(255, 0, 206, 209);
             //Add the series to the chart
             chart2.Series.Add(barSeries);
             var chartArea = chart2.ChartAreas[0];
@@ -91,25 +91,25 @@ namespace WaveVisualizer
                     if (i >= fLowBucket && i <= fHighBucket)
                     {
                         this.filter[i] = new ComplexNum();
-                        this.filter[i].Re = 1.0;
-                        this.filter[i].Im = 1.0;
+                        this.filter[i].Re = 0.0;
+                        this.filter[i].Im = 0.0;
                         if (aliasIndex < this.filter.Length)
                         {
                             this.filter[aliasIndex] = new ComplexNum();
-                            this.filter[aliasIndex].Re = 1.0;
-                            this.filter[aliasIndex].Im = 1.0;
+                            this.filter[aliasIndex].Re = 0.0;
+                            this.filter[aliasIndex].Im = 0.0;
                         }
                     }
                     else
                     {
                         this.filter[i] = new ComplexNum();
-                        this.filter[i].Re = 0.0;
-                        this.filter[i].Im = 0.0;
+                        this.filter[i].Re = 1.0;
+                        this.filter[i].Im = 1.0;
                         if (aliasIndex < this.filter.Length)
                         {
                             this.filter[aliasIndex] = new ComplexNum(); 
-                            this.filter[aliasIndex].Re = 0.0;
-                            this.filter[aliasIndex].Im = 0.0;
+                            this.filter[aliasIndex].Re = 1.0;
+                            this.filter[aliasIndex].Im = 1.0;
                         }
                     }
                 }
@@ -122,6 +122,7 @@ namespace WaveVisualizer
 
         private void Chart2_MouseDown(object sender, EventArgs e)
         {
+            if (this.fourierSamples.Length <= 0) return;
             this.chartClicked = true;
             MouseEventArgs me = (MouseEventArgs)e;
             var chart = (Chart)sender;
@@ -135,8 +136,6 @@ namespace WaveVisualizer
             double yBottom = chartArea.AxisY.ValueToPixelPosition(chartArea.AxisY.Maximum);
             double xMin = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Minimum);
             double xMax = chartArea.AxisX.ValueToPixelPosition(chartArea.AxisX.Maximum);
-            //Debug.WriteLine(xMin);
-            //Debug.WriteLine(pX);
             if(pX < xMin)
             {
                 pX = (int)xMin;
@@ -154,10 +153,12 @@ namespace WaveVisualizer
         }
         private void Chart2_MouseUp(object sender, EventArgs e)
         {
+            if (this.fourierSamples.Length <= 0) return;
             this.chartClicked = false;
         }
         private void Chart2_MouseMove(object sender, EventArgs e)
         {
+            if (this.fourierSamples.Length <= 0) return;
             if (this.chartClicked)
             {
                 MouseEventArgs me = (MouseEventArgs)e;

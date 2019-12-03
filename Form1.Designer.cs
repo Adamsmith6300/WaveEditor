@@ -38,6 +38,7 @@
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.newEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chart2 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.hScrollBar1 = new System.Windows.Forms.HScrollBar();
@@ -60,7 +61,6 @@
             this.label2 = new System.Windows.Forms.Label();
             this.comboBox1 = new System.Windows.Forms.ComboBox();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.newEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.chart1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chart2)).BeginInit();
@@ -95,20 +95,29 @@
             // openFileToolStripMenuItem
             // 
             this.openFileToolStripMenuItem.Name = "openFileToolStripMenuItem";
-            this.openFileToolStripMenuItem.Size = new System.Drawing.Size(143, 26);
+            this.openFileToolStripMenuItem.Size = new System.Drawing.Size(166, 26);
             this.openFileToolStripMenuItem.Text = "Open";
             this.openFileToolStripMenuItem.Click += new System.EventHandler(this.openFileToolStripMenuItem_Click);
             // 
             // saveToolStripMenuItem
             // 
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(143, 26);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(166, 26);
             this.saveToolStripMenuItem.Text = "Save As";
             this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
             // 
+            // newEditorToolStripMenuItem
+            // 
+            this.newEditorToolStripMenuItem.Name = "newEditorToolStripMenuItem";
+            this.newEditorToolStripMenuItem.Size = new System.Drawing.Size(166, 26);
+            this.newEditorToolStripMenuItem.Text = "New Editor";
+            this.newEditorToolStripMenuItem.Click += new System.EventHandler(this.newEditorToolStripMenuItem_Click);
+            // 
             // chart1
             // 
+            this.chart1.BackColor = System.Drawing.Color.DimGray;
             this.chart1.BorderlineColor = System.Drawing.Color.DarkRed;
+            chartArea7.BackColor = System.Drawing.Color.DimGray;
             chartArea7.InnerPlotPosition.Auto = false;
             chartArea7.InnerPlotPosition.Height = 82.58639F;
             chartArea7.InnerPlotPosition.Width = 90F;
@@ -135,7 +144,9 @@
             // 
             // chart2
             // 
+            this.chart2.BackColor = System.Drawing.Color.DimGray;
             chartArea8.AxisX.IntervalOffset = 1D;
+            chartArea8.BackColor = System.Drawing.Color.DimGray;
             chartArea8.InnerPlotPosition.Auto = false;
             chartArea8.InnerPlotPosition.Height = 80F;
             chartArea8.InnerPlotPosition.Width = 90F;
@@ -173,62 +184,74 @@
             // 
             // sRec
             // 
+            this.sRec.BackColor = System.Drawing.Color.Black;
+            this.sRec.ForeColor = System.Drawing.Color.White;
             this.sRec.Location = new System.Drawing.Point(17, 97);
             this.sRec.Name = "sRec";
             this.sRec.Size = new System.Drawing.Size(134, 38);
             this.sRec.TabIndex = 5;
             this.sRec.Text = "Start Rec";
-            this.sRec.UseVisualStyleBackColor = true;
+            this.sRec.UseVisualStyleBackColor = false;
             this.sRec.Click += new System.EventHandler(this.sRec_Click_1);
             // 
             // stRec
             // 
+            this.stRec.BackColor = System.Drawing.Color.Black;
+            this.stRec.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.stRec.Location = new System.Drawing.Point(167, 97);
             this.stRec.Name = "stRec";
             this.stRec.Size = new System.Drawing.Size(134, 38);
             this.stRec.TabIndex = 6;
             this.stRec.Text = "Stop Rec";
-            this.stRec.UseVisualStyleBackColor = true;
+            this.stRec.UseVisualStyleBackColor = false;
             this.stRec.Click += new System.EventHandler(this.stRec_Click);
             // 
             // sPlay
             // 
+            this.sPlay.BackColor = System.Drawing.Color.Black;
+            this.sPlay.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.sPlay.Location = new System.Drawing.Point(17, 152);
             this.sPlay.Name = "sPlay";
             this.sPlay.Size = new System.Drawing.Size(134, 38);
             this.sPlay.TabIndex = 7;
             this.sPlay.Text = "Start Play";
-            this.sPlay.UseVisualStyleBackColor = true;
+            this.sPlay.UseVisualStyleBackColor = false;
             this.sPlay.Click += new System.EventHandler(this.sPlay_Click_1);
             // 
             // stPlay
             // 
+            this.stPlay.BackColor = System.Drawing.Color.Black;
+            this.stPlay.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.stPlay.Location = new System.Drawing.Point(167, 152);
             this.stPlay.Name = "stPlay";
             this.stPlay.Size = new System.Drawing.Size(134, 38);
             this.stPlay.TabIndex = 8;
             this.stPlay.Text = "Stop Play";
-            this.stPlay.UseVisualStyleBackColor = true;
+            this.stPlay.UseVisualStyleBackColor = false;
             this.stPlay.Click += new System.EventHandler(this.stPlay_Click_1);
             // 
             // dftButton
             // 
+            this.dftButton.BackColor = System.Drawing.Color.Black;
+            this.dftButton.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.dftButton.Location = new System.Drawing.Point(208, 110);
             this.dftButton.Name = "dftButton";
             this.dftButton.Size = new System.Drawing.Size(93, 38);
             this.dftButton.TabIndex = 9;
             this.dftButton.Text = "DFT";
-            this.dftButton.UseVisualStyleBackColor = true;
+            this.dftButton.UseVisualStyleBackColor = false;
             this.dftButton.Click += new System.EventHandler(this.dftButton_Click);
             // 
             // filterButton
             // 
+            this.filterButton.BackColor = System.Drawing.Color.Black;
+            this.filterButton.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.filterButton.Location = new System.Drawing.Point(107, 104);
             this.filterButton.Name = "filterButton";
             this.filterButton.Size = new System.Drawing.Size(108, 44);
             this.filterButton.TabIndex = 10;
             this.filterButton.Text = "Apply Filter";
-            this.filterButton.UseVisualStyleBackColor = true;
+            this.filterButton.UseVisualStyleBackColor = false;
             this.filterButton.Click += new System.EventHandler(this.filterButton_Click);
             // 
             // groupBox1
@@ -241,6 +264,7 @@
             this.groupBox1.Controls.Add(this.stRec);
             this.groupBox1.Controls.Add(this.sPlay);
             this.groupBox1.Controls.Add(this.stPlay);
+            this.groupBox1.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.groupBox1.Location = new System.Drawing.Point(1004, 46);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(320, 220);
@@ -271,8 +295,8 @@
             // 
             this.comboBox4.FormattingEnabled = true;
             this.comboBox4.Items.AddRange(new object[] {
-            "8 bit",
-            "16 bit"});
+            "16 bit",
+            "32 bit"});
             this.comboBox4.Location = new System.Drawing.Point(167, 57);
             this.comboBox4.Name = "comboBox4";
             this.comboBox4.Size = new System.Drawing.Size(134, 24);
@@ -297,6 +321,7 @@
             this.groupBox2.Controls.Add(this.label1);
             this.groupBox2.Controls.Add(this.comboBox2);
             this.groupBox2.Controls.Add(this.dftButton);
+            this.groupBox2.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.groupBox2.Location = new System.Drawing.Point(1004, 435);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(320, 162);
@@ -372,6 +397,7 @@
             this.groupBox3.Controls.Add(this.filterButton);
             this.groupBox3.Controls.Add(this.label2);
             this.groupBox3.Controls.Add(this.comboBox1);
+            this.groupBox3.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.groupBox3.Location = new System.Drawing.Point(1004, 639);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Size = new System.Drawing.Size(320, 167);
@@ -379,17 +405,11 @@
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Filtering";
             // 
-            // newEditorToolStripMenuItem
-            // 
-            this.newEditorToolStripMenuItem.Name = "newEditorToolStripMenuItem";
-            this.newEditorToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.newEditorToolStripMenuItem.Text = "New Editor";
-            this.newEditorToolStripMenuItem.Click += new System.EventHandler(this.newEditorToolStripMenuItem_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.Color.DimGray;
             this.ClientSize = new System.Drawing.Size(1362, 827);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.groupBox2);
@@ -399,6 +419,7 @@
             this.Controls.Add(this.chart1);
             this.Controls.Add(this.menuStrip1);
             this.DoubleBuffered = true;
+            this.ForeColor = System.Drawing.SystemColors.AppWorkspace;
             this.MainMenuStrip = this.menuStrip1;
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "Form1";
