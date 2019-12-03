@@ -18,8 +18,8 @@ namespace WaveVisualizer
     public partial class Form1 : Form
     {
         static int maxSamples = 596;
-        short[] rawSamples;
-        short[] cutSamples;
+        double[] rawSamples;
+        double[] cutSamples;
         uint sampleRate;
         uint bytesPerSec;
         uint bitsPerSample;
@@ -30,9 +30,9 @@ namespace WaveVisualizer
         int sel = 0;
         //short[] testSamples = {1, 1, 0, 0, 0, 1, 1, 0};
         ComplexNum[] fourierSamples;
-        short[] windowingSamples;
+        double[] windowingSamples;
         ComplexNum[][] dftThreadSamples;
-        Chart2 fourierChart;
+        FourierChart fourierChart;
         long posXStart;
         long posXFinish;
         private string filename;
@@ -42,7 +42,7 @@ namespace WaveVisualizer
         int multiplier = 1;
         bool dialogOpen = false;
         bool newRecording = false;
-        double zeroThreshold = 1e-10;
+        double zeroThreshold = 0.01;
 
         public struct RecordData
         {
@@ -93,13 +93,6 @@ namespace WaveVisualizer
         public Form1()
         {
             InitializeComponent();
-            //DoubleBuffered = true;
-            //   System.Reflection.PropertyInfo aProp =
-            //typeof(System.Windows.Forms.Control).GetProperty(
-            //      "DoubleBuffered",
-            //      System.Reflection.BindingFlags.NonPublic |
-            //      System.Reflection.BindingFlags.Instance);
-            //   aProp.SetValue(this.Controls[0], true, null);
             this.DoubleBuffered = true;
             this.hScrollBar1.Visible = false;
             this.KeyPreview = true;
@@ -113,6 +106,46 @@ namespace WaveVisualizer
             this.comboBox5.SelectedIndex = 0;
             this.Text = "Wave Editor";
             this.AutoSize = true;
+
+            //button styles
+            this.sRec.TabStop = false;
+            this.sRec.FlatStyle = FlatStyle.Flat;
+            this.sRec.FlatAppearance.BorderSize = 0;
+            this.sRec.FlatAppearance.BorderColor = Color.FromArgb(0, 255, 255, 255);
+            this.sRec.ForeColor = Color.FromArgb(255, 0, 206, 209);
+
+
+            this.stRec.TabStop = false;
+            this.stRec.FlatStyle = FlatStyle.Flat;
+            this.stRec.FlatAppearance.BorderSize = 0;
+            this.stRec.FlatAppearance.BorderColor = Color.FromArgb(0, 255, 255, 255);
+            this.stRec.ForeColor = Color.FromArgb(255, 0, 206, 209);
+
+            this.sPlay.TabStop = false;
+            this.sPlay.FlatStyle = FlatStyle.Flat;
+            this.sPlay.FlatAppearance.BorderSize = 0;
+            this.sPlay.FlatAppearance.BorderColor = Color.FromArgb(0, 255, 255, 255);
+            this.sPlay.ForeColor = Color.FromArgb(255, 0, 206, 209);
+
+            this.stPlay.TabStop = false;
+            this.stPlay.FlatStyle = FlatStyle.Flat;
+            this.stPlay.FlatAppearance.BorderSize = 0;
+            this.stPlay.FlatAppearance.BorderColor = Color.FromArgb(0, 255, 255, 255);
+            this.stPlay.ForeColor = Color.FromArgb(255, 0, 206, 209);
+
+            this.filterButton.TabStop = false;
+            this.filterButton.FlatStyle = FlatStyle.Flat;
+            this.filterButton.FlatAppearance.BorderSize = 0;
+            this.filterButton.FlatAppearance.BorderColor = Color.FromArgb(0, 255, 255, 255);
+            this.filterButton.ForeColor = Color.FromArgb(255, 0, 206, 209);
+
+            this.dftButton.TabStop = false;
+            this.dftButton.FlatStyle = FlatStyle.Flat;
+            this.dftButton.FlatAppearance.BorderSize = 0;
+            this.dftButton.FlatAppearance.BorderColor = Color.FromArgb(0, 255, 255, 255);
+            this.dftButton.ForeColor = Color.FromArgb(255, 0, 206, 209);
+
+
         }
 
 
@@ -129,10 +162,9 @@ namespace WaveVisualizer
             dataSize = rawSamples.Length / numChannels;
             // clear the chart series points
             chart1.Series.Clear();
-            //Debug.WriteLine(rawSamples.Length);
             var series = chart1.Series.Add("My Series");
             var series2 = chart1.Series.Add("My Series2");
-            series.Color = Color.LightBlue;
+            series.Color = Color.FromArgb(255, 0, 206, 209);
             series.ChartType = SeriesChartType.Spline;
             series2.ChartType = SeriesChartType.Spline;
             //series.XValueType = ChartValueType.Double;
@@ -155,31 +187,32 @@ namespace WaveVisualizer
             chart1.MouseWheel += chart1_MouseWheel;
             chartArea.AxisX.ScaleView.SizeType = DateTimeIntervalType.Number;
             //minmum zoom to 10
-            chartArea.AxisX.ScaleView.MinSize = 0.00;
+            //chartArea.AxisX.ScaleView.MinSize = 0.00;
             // set view range to [0,max]
-            chartArea.AxisX.ScaleView.Zoom(0.00, (double)dataSize/sampleRate);
-            chartArea.AxisX.ScaleView.Position = 0.00;
-            chartArea.AxisX.Minimum = 0.00;
-            chartArea.AxisX.Maximum = Math.Ceiling((double)dataSize/sampleRate);
+            //chartArea.AxisX.ScaleView.Zoom(0.00, (double)dataSize/sampleRate);
+            //chartArea.AxisX.ScaleView.Position = 0.00;
+            //chartArea.AxisX.Minimum = 0.00;
+            //chartArea.AxisX.Maximum = Math.Ceiling((double)dataSize/sampleRate);
             //chartArea.AxisY.Maximum = 100000;
             //chartArea.AxisY.Minimum = -100000;
-            //reset zoom button
-            //chartArea.AxisX.ScrollBar.ButtonStyle = ScrollBarButtonStyles.SmallScroll;
-            // enable autoscroll
-            //chartArea.CursorX.AutoScroll = true;
+            
             chartArea.CursorX.Interval = 0.001;
             chartArea.CursorX.IsUserSelectionEnabled = true;
             chartArea.CursorX.IsUserEnabled = true;
+
             selStart = 0;
-            selEnd = dataSize/numChannels;
-            sel = dataSize/numChannels;
-            maxSamples = chart1.Size.Width;
+            selEnd = Math.Min(dataSize/numChannels, selEnd + 1000);
+            sel = selEnd;
+            //sel = Math.Abs(selEnd - selStart);
+
+
             this.hScrollBar1.Value = selStart;
             this.hScrollBar1.SmallChange = maxSamples;
             this.hScrollBar1.LargeChange = maxSamples;
             this.hScrollBar1.Maximum = (dataSize) - maxSamples;
             this.hScrollBar1.Minimum = 0;
             this.hScrollBar1.Visible = true;
+
             refreshChart();
             /*******************
              * END Initial setup
@@ -224,7 +257,7 @@ namespace WaveVisualizer
                 }
             }
             //chart1.ChartAreas[0].AxisX.ScaleView.Position = selStart/sampleRate;
-            chart1.ChartAreas[0].AxisX.Minimum = 0;
+            chart1.ChartAreas[0].AxisX.Minimum = 0.000;
             chart1.ChartAreas[0].AxisX.Maximum =  ((dataSize)/ sampleRate) + 1;
             chart1.ChartAreas[0].AxisX.ScaleView.Zoom((double)selStart / sampleRate, (double)selEnd / sampleRate);
            
@@ -254,12 +287,12 @@ namespace WaveVisualizer
                 }
                 if (Math.Abs(fourierSamples[f].Re) < zeroThreshold)
                 {
-                    fourierSamples[f].Re = 0;
+                    fourierSamples[f].Re = 0.0;
                 }
 
                 if (Math.Abs(fourierSamples[f].Im) < zeroThreshold)
                 {
-                    fourierSamples[f].Im = 0;
+                    fourierSamples[f].Im = 0.0;
                 }
             }
         }
@@ -305,7 +338,6 @@ namespace WaveVisualizer
         private void dftThreadProc(int threadIndex, long startRawSamples, long N, long chunkSize)
         {
             ComplexNum[] dftSamples = new ComplexNum[chunkSize];
-            //Debug.WriteLine("Started thread" + threadIndex);
             for (long f = 0; f < chunkSize; f++)
             {
                 dftSamples[f] = new ComplexNum();
@@ -318,38 +350,34 @@ namespace WaveVisualizer
                 }
                 if (Math.Abs(dftSamples[f].Re) < zeroThreshold)
                 {
-                    dftSamples[f].Re = 0;
+                    dftSamples[f].Re = 0.0;
                 }
 
                 if (Math.Abs(dftSamples[f].Im) < zeroThreshold)
                 {
-                    dftSamples[f].Im = 0;
+                    dftSamples[f].Im = 0.0;
                 }
             }
-            //Debug.WriteLine("DONE thread" + threadIndex);
             dftThreadSamples[threadIndex] = dftSamples;
         }
 
         private void combineDfts(long N, long numberOfBins)
         {
             fourierSamples = new ComplexNum[N];
-            //Debug.WriteLine("Started copying threads");
             Array.Copy(dftThreadSamples[0], 0, fourierSamples, 0, numberOfBins);
             Array.Copy(dftThreadSamples[1], 0, fourierSamples, numberOfBins, numberOfBins);
             Array.Copy(dftThreadSamples[2], 0, fourierSamples, numberOfBins * 2, numberOfBins);
             Array.Copy(dftThreadSamples[3], 0, fourierSamples, numberOfBins * 3, numberOfBins);
-            //Debug.WriteLine("Done copying threads");
         }
 
         private double[] idft(ComplexNum[] A)
         {
             int n = A.Length;
             double[] newSamples = new double[n];
-            var zeroThreshold = 1e-10;
             for (int t = 0; t < n; t++)
             {
-                double re = 0;
-                double im = 0;
+                double re = 0.0;
+                double im = 0.0;
                 for (int f = 0; f < n; f++)
                 {
                     re += A[f].Re * Math.Cos((2 * Math.PI * t * f) / n);
@@ -357,12 +385,12 @@ namespace WaveVisualizer
                 }
                 if (Math.Abs(re) < zeroThreshold )//|| re < 0)
                 {
-                    re = 0;
+                    re = 0.0;
                 }
 
                 if (Math.Abs(im) < zeroThreshold )//|| im < 0)
                 {
-                    im = 0;
+                    im = 0.0;
                 }
                 newSamples[t] = (re + im)/n;
             }
@@ -371,7 +399,7 @@ namespace WaveVisualizer
 
         private void applyWindowing(long start, long N)
         {
-            windowingSamples = new short[N];
+            windowingSamples = new double[N];
             double[] w = new double[N];
             Array.Copy(rawSamples, start, windowingSamples, 0, N);
             int selectedIndex = comboBox2.SelectedIndex;
@@ -389,7 +417,7 @@ namespace WaveVisualizer
                     for (long n = -m; n < m; n++)
                     {
                         w[m + n] = 0.54f + 0.46f * Math.Cos(n * r);
-                        windowingSamples[m + n] = (short)(w[m + n] * windowingSamples[m + n]);
+                        windowingSamples[m + n] = (w[m + n] * windowingSamples[m + n]);
                     }
                     break;
                 case 2:
@@ -398,7 +426,7 @@ namespace WaveVisualizer
                     for (long n = -m; n < m; n++)
                     {
                         w[m + n] = 0.5f + 0.5f * Math.Cos(n * r);
-                        windowingSamples[m + n] = (short)(w[m + n] * windowingSamples[m + n]);
+                        windowingSamples[m + n] = (w[m + n] * windowingSamples[m + n]);
                     }
                     break;
                 default:
@@ -407,26 +435,27 @@ namespace WaveVisualizer
             }
         }
 
-        private void applyFilter(double[] fWeights)
+        private double[] applyFilter(double[] fWeights, double[] samples)
         {
-            for(int i = 0; i < rawSamples.Length; i++)
+            for(int i = 0; i < samples.Length; i++)
             {
-                double temp = 0;
+                double temp = 0.0;
                 for (int j = 0; j < fWeights.Length; j++)
                 {
-                    short rs = 0;
-                    if(i + j >= rawSamples.Length)
+                    double rs = 0.0;
+                    if(i + j >= samples.Length)
                     {
-                        rs = (short)0;
+                        rs = 0.0;
                     } else
                     {
-                        rs = rawSamples[i + j];
+                        rs = samples[i + j];
                     }
                     temp += (rs * fWeights[j]);
                 }
-                rawSamples[i] = (short)temp;
+                samples[i] = temp;
             }
-            refreshChart();
+            return samples;
+            //refreshChart();
         }
 
         //event Handlers
@@ -455,10 +484,10 @@ namespace WaveVisualizer
                 switch (quantizationIndex)
                 {
                     case 0:
-                        bitDepth = 8;
+                        bitDepth = 16;
                         break;
                     case 1:
-                        bitDepth = 16;
+                        bitDepth = 32;
                         break;
                     default:
                         break;
@@ -491,18 +520,24 @@ namespace WaveVisualizer
           
             if (waveFile.FmtChunk1.BitsPerSample == 8)
             {
-                //short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
-                //for (int i = 0; i < temp.Length - 1; i++)
-                //    temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
-                rawSamples = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
-                rawSamples = data.Select(x => (short)(x - 128)).ToArray();
+                rawSamples = new double[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                rawSamples = data.Select(x => (double)(x)).ToArray();
+                //rawSamples = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                //rawSamples = data.Select(x => (short)(x - 128)).ToArray();
             }
             else if (waveFile.FmtChunk1.BitsPerSample == 16)
             {
-                short[] temp = new short[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                double[] temp = new double[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
                 for (int i = 0; i < temp.Length - 1; i++)
                     temp[i] = BitConverter.ToInt16(data, i * (int)waveFile.FmtChunk1.BlockAlign);
-                rawSamples = new short[temp.Length];
+                rawSamples = new double[temp.Length];
+                rawSamples = temp.Select(x => (x)).ToArray();
+            }
+            else if (waveFile.FmtChunk1.BitsPerSample == 32)
+            {
+                double[] temp = new double[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
+                for (int i = 0; i < temp.Length; i++)
+                    temp[i] = BitConverter.ToInt32(data, i * (int)waveFile.FmtChunk1.BlockAlign);
                 rawSamples = temp.Select(x => (x)).ToArray();
             }
             //rawSamples = temp.Select(x => (x)).ToArray();
@@ -528,13 +563,22 @@ namespace WaveVisualizer
             //preps samples for dll
             if (waveFile.FmtChunk1.BitsPerSample == 8)
             {
-                data = rawSamples.Select(x => (x)).ToArray()
-                        .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
+                data = new byte[rawSamples.Length];
+                Buffer.BlockCopy(rawSamples, 0, data, 0, data.Length);
+                //data = rawSamples.Select(x => (x)).ToArray()
+                //   .Select(x => Convert.ToInt16(x))
+                //   .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
             }
             if (waveFile.FmtChunk1.BitsPerSample == 16)
             {
                 data = rawSamples.Select(x => (x)).ToArray()
                     .Select(x => Convert.ToInt16(x))
+                    .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
+            }
+            if (waveFile.FmtChunk1.BitsPerSample == 32)
+            {
+                data = rawSamples.Select(x => (int)(x)).ToArray()
+                    .Select(x => Convert.ToInt32(x))
                     .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
             }
             //gets pointer to array, for dll
@@ -545,23 +589,19 @@ namespace WaveVisualizer
             {
                 bool isSet = SetWaveform((int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
             }
-            //Debug.WriteLine("bits:"+(int)waveFile.FmtChunk1.BitsPerSample+"srate:"+(int)waveFile.FmtChunk1.SamplesPerSec+"blcAl:"+ (int)waveFile.FmtChunk1.BlockAlign+"Ch:"+ (int)waveFile.FmtChunk1.Channels+"ByPS:"+(int)waveFile.FmtChunk1.AverageBytesPerSec);
-            PlayStart(newRecording, iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
+            PlayStart(false, iptr, data.Length, (int)waveFile.FmtChunk1.BitsPerSample, (int)waveFile.FmtChunk1.SamplesPerSec, (int)waveFile.FmtChunk1.BlockAlign, (int)waveFile.FmtChunk1.Channels, (int)waveFile.FmtChunk1.AverageBytesPerSec);
             Marshal.FreeHGlobal(iptr);
         }
         private void stPlay_Click_1(object sender, EventArgs e)
         {
-            if (dialogOpen)
-            {
-              PlayStop();
-            }
+            PlayStop();
         }
         private void Button1_Click(object sender, EventArgs e)
         {
         }
         private void Chart1_MouseDown(object sender, EventArgs e)
         {
-
+            if(this.waveFile == null && this.wf.Equals(default(WaveForm))) { return; }
             MouseEventArgs me = (MouseEventArgs)e;
             var chart = (Chart)sender;
             //var xAxis = chart.ChartAreas[0].AxisX;
@@ -570,11 +610,10 @@ namespace WaveVisualizer
             double pX = chart.ChartAreas[0].CursorX.Position;
             
             posXStart = (long)(pX * sampleRate);
-            //Debug.WriteLine("ONCLICK-"+ pX + ":" + sampleRate);
         }
         private void Chart1_MouseUp(object sender, EventArgs e)
         {
-
+            if (this.waveFile == null && this.wf.Equals(default(WaveForm))) { return; }
             MouseEventArgs me = (MouseEventArgs)e;
             var chart = (Chart)sender;
             //var xAxis = chart.ChartAreas[0].AxisX;
@@ -602,7 +641,7 @@ namespace WaveVisualizer
         {
             var chart = (Chart)sender;
             var xAxis = chart.ChartAreas[0].AxisX;
-
+            if (this.waveFile == null && this.wf.Equals(default(WaveForm))) { return; }
             try
             {
                 if (e.Delta < 0) // zoom out
@@ -612,7 +651,6 @@ namespace WaveVisualizer
                         selStart = Math.Max(0, selStart - 1000);
                         selEnd = Math.Min(dataSize, selEnd + 1000);
                         sel = Math.Abs(selEnd - selStart);
-                        //Debug.WriteLine(selStart + ":" + selEnd + ":" + sel);
                         this.hScrollBar1.Value = selStart;
                         refreshChart();
                     }
@@ -621,13 +659,9 @@ namespace WaveVisualizer
                 {
                     if (Math.Abs(selEnd - selStart) > 5*maxSamples)
                     {
-                        //chartArea.AxisX.ScaleView.SizeType = DateTimeIntervalType.Number;
-                        //double xPos = xAxis.PixelPositionToValue(e.Location.X) * sampleRate;
-                        //double xPos = (selEnd - selStart) / 2;
                         selStart = Math.Max(0, selStart + 1000);
                         selEnd = Math.Min(dataSize, selEnd - 1000);
                         sel = Math.Abs(selEnd - selStart);
-                        //Debug.WriteLine(selStart + ":" + selEnd + ":" + sel);
                         this.hScrollBar1.Value = selStart;
                         refreshChart();
                     }
@@ -643,7 +677,6 @@ namespace WaveVisualizer
             {
                 int posXStart = (int)(chart1.ChartAreas[0].CursorX.SelectionStart * sampleRate * numChannels);
                 int posXFinish = (int)(chart1.ChartAreas[0].CursorX.SelectionEnd * sampleRate * numChannels);
-                //Debug.WriteLine(" Press " + (posXFinish - posXStart));
                 cutRawSamples(posXStart, posXFinish);
             }
             if (e.Control && e.KeyCode == Keys.V)
@@ -663,17 +696,16 @@ namespace WaveVisualizer
         {
             //cut & save raw samples
             int length = (int)Math.Abs(posXFinish - posXStart);
-            cutSamples = new short[length];
+            cutSamples = new double[length];
             Array.Copy(rawSamples, posXStart, cutSamples, 0, length);
             //make new arr for raw samples minus the cut
-            short[] newRawSamples = new short[rawSamples.Length - length];
+            double[] newRawSamples = new double[rawSamples.Length - length];
             //copy left side of cut into new arr
             Array.Copy(rawSamples, 0, newRawSamples, 0, posXStart);
             //copy right side of cut int arr
             Array.Copy(rawSamples, posXFinish, newRawSamples, posXStart, (rawSamples.Length-(posXStart + length)));
             //reinitialize rawsamples
-            Debug.WriteLine(rawSamples[rawSamples.Length - 1]);
-            rawSamples = new short[newRawSamples.Length];
+            rawSamples = new double[newRawSamples.Length];
             //copy new raw samples into old raw samples variable
             Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
             dataSize = rawSamples.Length / numChannels;
@@ -689,7 +721,7 @@ namespace WaveVisualizer
         {
             //cut & save raw samples
             int length = (int)Math.Abs(posXFinish - posXStart);
-            cutSamples = new short[length];
+            cutSamples = new double[length];
             Array.Copy(rawSamples, posXStart, cutSamples, 0, length);
 
             DataFormats.Format myFormat = DataFormats.GetFormat("cutData");
@@ -710,19 +742,23 @@ namespace WaveVisualizer
                 if (csData.Cs == null || csData.Cs.Length <= 0 || csData.Sr <= 0) return;
 
                 int length = csData.Cs.Length;
-                short[] newCutSamples = csData.Cs;
+                double[] newCutSamples = csData.Cs;
                 if (csData.Sr > this.sampleRate)
                 {
                     //downSample
-
+                    newCutSamples = downSample(csData);
+                    int factor = (int)(csData.Sr / this.sampleRate);
+                    length = csData.Cs.Length / factor;
                 }
                 if (csData.Sr < this.sampleRate)
                 {
                     //upSample
                     newCutSamples = upSample(csData);
+                    int factor = (int)(this.sampleRate/ csData.Sr);
+                    length = csData.Cs.Length * factor;
                 }
 
-                short[] newRawSamples = new short[rawSamples.Length + length];
+                double[] newRawSamples = new double[rawSamples.Length + length];
                 //paste left side of cut into new arr
                 Array.Copy(rawSamples, 0, newRawSamples, 0, posX);
                 //paste cutout section
@@ -730,7 +766,7 @@ namespace WaveVisualizer
                 //paste right side of cut int arr
                 Array.Copy(rawSamples, posX, newRawSamples, (posX + length), rawSamples.Length - posX);
                 //reinitialize rawsamples
-                rawSamples = new short[newRawSamples.Length];
+                rawSamples = new double[newRawSamples.Length];
                 //copy new raw samples into old raw samples variable
                 Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
 
@@ -741,10 +777,10 @@ namespace WaveVisualizer
             
         }
 
-        private short[] upSample(ClipboardData csData)
+        private double[] upSample(ClipboardData csData)
         {
             int factor = (int)(this.sampleRate / csData.Sr);
-            short[] newSamples = new short[csData.Cs.Length * factor];
+            double[] newSamples = new double[csData.Cs.Length * factor];
             for(int i = 0; i < csData.Cs.Length; ++i)
             {
                 for(int j = 0; j < factor; ++j)
@@ -752,7 +788,50 @@ namespace WaveVisualizer
                     newSamples[(i * factor) + j] = csData.Cs[i];
                 }
             }
+            ComplexNum[] nyquistFilter = genSampleFilter((int)this.sampleRate, csData);
+            double[] nyquistFilterWeights = idft(nyquistFilter);
+            newSamples = filterSelect(nyquistFilterWeights, newSamples);
+
             return newSamples;
+        }
+        private double[] downSample(ClipboardData csData)
+        {
+            ComplexNum[] nyquistFilter = genSampleFilter((int)this.sampleRate, csData);
+            double[] nyquistFilterWeights = idft(nyquistFilter);
+            double[] samples = filterSelect(nyquistFilterWeights, csData.Cs);
+
+            int factor = (int)(csData.Sr/this.sampleRate);
+            double[] newSamples = new double[csData.Cs.Length / factor];
+            for (int i = 0; i < newSamples.Length; ++i)
+            {
+                newSamples[i] = samples[i*factor];
+            }
+
+            return newSamples;
+        }
+
+        private ComplexNum[] genSampleFilter(int newSampleRate, ClipboardData csData)
+        {
+            ComplexNum[] filter = new ComplexNum[csData.Cs.Length/10];
+            //freq = (bin*S)/N
+            //bin = (freq*N)/S
+            int freq = newSampleRate / 2;
+            int bin = (freq * filter.Length) / newSampleRate;
+            for(int i = 0; i < filter.Length; ++i)
+            {
+
+                filter[i] = new ComplexNum();
+                if (i <= bin)
+                {
+                    filter[i].Re = 1.0;
+                    filter[i].Im = 1.0;
+                } else
+                {
+                    filter[i].Re = 0.0;
+                    filter[i].Im = 0.0;
+                }
+            }
+            return filter;
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
@@ -773,6 +852,8 @@ namespace WaveVisualizer
                 newChart();
                 newRecording = false;
                 this.Text = fileDlg.FileName +" ("+ waveFile.FmtChunk1.BitsPerSample + "bits, " + waveFile.FmtChunk1.SamplesPerSec + "Hz)";
+
+                refreshChart();
             }
         }
 
@@ -796,9 +877,6 @@ namespace WaveVisualizer
         {
             selStart = Math.Max(0, this.hScrollBar1.Value);
             selEnd = selStart + sel;
-            //selEnd = Math.Min(dataSize, selStart + sel);
-            //Debug.WriteLine(this.hScrollBar1.Value);
-            //sel = Math.Abs(selEnd - selStart);
             refreshChart();
         }
 
@@ -846,7 +924,7 @@ namespace WaveVisualizer
             }
 
             ///setup chart with fourier samples
-            fourierChart = new Chart2(this.fourierSamples, this.chart2);
+            fourierChart = new FourierChart(this.fourierSamples, this.chart2);
             fourierChart.setupChart();
         }
 
@@ -854,68 +932,75 @@ namespace WaveVisualizer
         {
             if(fourierChart!= null)
             {
-                int selectedIndex = comboBox1.SelectedIndex;
                 ComplexNum[] filter = fourierChart.generateFilter();
                 double[] filterWeights = idft(filter);
-                switch (selectedIndex)
-                {
-                    case 0:
-                        {
-                            applyFilter(filterWeights);
-                            break;
-                        }
-                    case 1:
-                        {
-                            IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(short)) * rawSamples.Length);
-                            Marshal.Copy(rawSamples, 0, diptr, rawSamples.Length);
-                            FilterData fd = openCLApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
-                            Marshal.Copy(fd.ip, rawSamples, 0, (int)fd.len);
-                            waveFile.DataChunk1.Data = rawSamples;
-                            refreshChart();
-                            Marshal.FreeHGlobal(diptr);
-                            break;
-                        }
-                    case 2:
-                        {
-
-                            var watch = System.Diagnostics.Stopwatch.StartNew();
-                            applyFilter(filterWeights);
-                            watch.Stop();
-                            double elapsedBasic = (double)watch.ElapsedMilliseconds/1000.00;
-
-                            IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(short)) * rawSamples.Length);
-                            Marshal.Copy(rawSamples, 0, diptr, rawSamples.Length);
-                            FilterData fd = openCLApplyFilter(filterWeights, filterWeights.Length, diptr, rawSamples.Length);
-                            Marshal.Copy(fd.ip, rawSamples, 0, (int)fd.len);
-                            waveFile.DataChunk1.Data = rawSamples;
-                            refreshChart();
-                            var openCLElapsed = fd.openCLElapsed;
-
-                            double diff = elapsedBasic / openCLElapsed;
-                            diff = Math.Round(diff, 3);
-                            string box_msg;
-                            string box_title = "OpenCL vs C# Convolution Performance";
-                            if (diff <= 0)
-                            {
-                                double negDiff = openCLElapsed / elapsedBasic;
-                                negDiff = Math.Round(diff, 3);
-                                box_msg = "OpenCL is " + negDiff.ToString() + " times slower than basic C#";
-                            } else
-                            {
-                                 box_msg = "OpenCL is " + diff.ToString() + " times faster than basic C#";
-                            }
-                            MessageBox.Show(box_msg, box_title);
-                            Marshal.FreeHGlobal(diptr);
-                            break;
-                        }
-                    default:
-                        {
-                            applyFilter(filterWeights);
-                            break;
-                        }
-                }
-                
+                rawSamples = filterSelect(filterWeights, this.rawSamples);
+                waveFile.DataChunk1.Data = rawSamples;
+                refreshChart();
             }
+        }
+
+        private double[] filterSelect(double[] filterWeights, double[] samples)
+        {
+            int selectedIndex = comboBox1.SelectedIndex;
+            double[] newSamples = new double[samples.Length];
+            switch (selectedIndex)
+            {
+                case 0:
+                    {
+                        newSamples = applyFilter(filterWeights, samples);
+                        break;
+                    }
+                case 1:
+                    {
+                        IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(double)) * samples.Length);
+                        Marshal.Copy(samples, 0, diptr, samples.Length);
+                        FilterData fd = openCLApplyFilter(filterWeights, filterWeights.Length, diptr, samples.Length);
+                        newSamples = new double[(int)fd.len];
+                        Marshal.Copy(fd.ip, newSamples, 0, (int)fd.len);
+                        Marshal.FreeHGlobal(diptr);
+                        break;
+                    }
+                case 2:
+                    {
+
+                        var watch = System.Diagnostics.Stopwatch.StartNew();
+                        newSamples = applyFilter(filterWeights, samples);
+                        watch.Stop();
+                        double elapsedBasic = (double)watch.ElapsedMilliseconds / 1000.00;
+
+                        IntPtr diptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(double)) * samples.Length);
+                        Marshal.Copy(samples, 0, diptr, samples.Length);
+                        FilterData fd = openCLApplyFilter(filterWeights, filterWeights.Length, diptr, samples.Length);
+                        newSamples = new double[(int)fd.len];
+                        Marshal.Copy(fd.ip, newSamples, 0, (int)fd.len);
+                        var openCLElapsed = fd.openCLElapsed;
+
+                        double diff = elapsedBasic / openCLElapsed;
+                        diff = Math.Round(diff, 3);
+                        string box_msg;
+                        string box_title = "OpenCL vs C# Convolution Performance";
+                        if (diff <= 0)
+                        {
+                            double negDiff = openCLElapsed / elapsedBasic;
+                            negDiff = Math.Round(diff, 3);
+                            box_msg = "OpenCL is " + negDiff.ToString() + " times slower than basic C#";
+                        }
+                        else
+                        {
+                            box_msg = "OpenCL is " + diff.ToString() + " times faster than basic C#";
+                        }
+                        MessageBox.Show(box_msg, box_title);
+                        Marshal.FreeHGlobal(diptr);
+                        break;
+                    }
+                default:
+                    {
+                        newSamples = applyFilter(filterWeights, samples);
+                        break;
+                    }
+            }
+            return newSamples;
         }
 
         private void groupBox1_Enter(object sender, EventArgs e)

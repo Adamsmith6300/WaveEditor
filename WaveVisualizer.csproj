@@ -97,8 +97,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Chart2.cs" />
-    <Compile Include="Class1.cs" />
+    <Compile Include="FourierChart.cs" />
+    <Compile Include="CutSamples.cs" />
     <Compile Include="RWWaveFile.cs" />
     <Compile Include="ComplexNum.cs" />
     <Compile Include="Form1.cs">
