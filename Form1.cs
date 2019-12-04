@@ -511,13 +511,13 @@ namespace WaveVisualizer
             //gets recorded data (samples)
             Marshal.Copy(rd.ip, data, 0, (int)rd.len);
             //gets wave fmt/riff data
+            byte[] formatTag = new byte[4];
             wf = (WaveForm)Marshal.PtrToStructure(GetWaveform(), typeof(WaveForm));
-            waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), rd.len + 36, Encoding.ASCII.GetBytes("WAVE"),
-                    Encoding.ASCII.GetBytes("fmt"), 16, (ushort)1, wf.nChannels, wf.nSamplesPerSec,
+            waveFile = new RWWaveFile(Encoding.ASCII.GetBytes("RIFF"), (uint)(rd.len / wf.nBlockAlign) + 36, Encoding.ASCII.GetBytes("WAVE"),
+                    Encoding.ASCII.GetBytes("fmt "), 16, (ushort)1, wf.nChannels, wf.nSamplesPerSec,
                     wf.nAvgBytesPerSec, wf.nBlockAlign, wf.wBitsPerSample,
                     Encoding.ASCII.GetBytes("data"), rd.len);
             //sets up samples
-          
             if (waveFile.FmtChunk1.BitsPerSample == 8)
             {
                 rawSamples = new double[rd.len / (int)waveFile.FmtChunk1.BlockAlign];
@@ -539,8 +539,9 @@ namespace WaveVisualizer
                 for (int i = 0; i < temp.Length; i++)
                     temp[i] = BitConverter.ToInt32(data, i * (int)waveFile.FmtChunk1.BlockAlign);
                 rawSamples = temp.Select(x => (x)).ToArray();
+                waveFile.FmtChunk1.FmtTag = 3;
             }
-            //rawSamples = temp.Select(x => (x)).ToArray();
+            
             waveFile.DataChunk1.Data = rawSamples;
             if (waveFile.DataChunk1.Data != null)
             {
@@ -771,7 +772,7 @@ namespace WaveVisualizer
                 Array.Copy(newRawSamples, 0, rawSamples, 0, newRawSamples.Length);
 
                 dataSize = rawSamples.Length / numChannels;
-                //selEnd = selEnd - length;
+
                 refreshChart();
             }
             
@@ -852,7 +853,6 @@ namespace WaveVisualizer
                 newChart();
                 newRecording = false;
                 this.Text = fileDlg.FileName +" ("+ waveFile.FmtChunk1.BitsPerSample + "bits, " + waveFile.FmtChunk1.SamplesPerSec + "Hz)";
-
                 refreshChart();
             }
         }
@@ -866,7 +866,11 @@ namespace WaveVisualizer
             if (saveFileDialog1.FileName != "")
             {
                 filename = saveFileDialog1.FileName;
-                waveFile.DataChunk1.Data = rawSamples;
+                waveFile.DataChunk1.DataSize = (uint)(rawSamples.Length * numChannels * (bitsPerSample / 8));
+                waveFile.RiffChunk1.FileSize = (uint)(rawSamples.Length * numChannels * (bitsPerSample / 8)) + 36;
+                waveFile.DataChunk1.NumSamples = rawSamples.Length;
+                waveFile.DataChunk1.copyData(rawSamples);
+                waveFile.printWave();
                 waveFile.Write(filename);
                 this.Text = filename + " (" + waveFile.FmtChunk1.BitsPerSample + "bits, " + waveFile.FmtChunk1.SamplesPerSec + "Hz)";
             }

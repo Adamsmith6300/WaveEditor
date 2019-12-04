@@ -55,6 +55,13 @@ namespace WaveVisualizer
             FmtChunk1 = new FmtChunk(fileStream);
             DataChunk1 = new DataChunk(fileStream, FmtChunk1);
         }
+
+        public void printWave()
+        {
+            RiffChunk1.printRiff();
+            FmtChunk1.printFmt();
+            DataChunk1.printDataChunk();
+        }
         internal RiffChunk RiffChunk1 { get => riffChunk; set => riffChunk = value; }
         internal FmtChunk FmtChunk1 { get => fmtChunk; set => fmtChunk = value; }
         internal DataChunk DataChunk1 { get => dataChunk; set => dataChunk = value; }
@@ -64,6 +71,7 @@ namespace WaveVisualizer
             BinaryWriter wr = new BinaryWriter(f);
             try
             {
+                printWave();
                 wr.Write(RiffChunk1.RiffID);
                 wr.Write(RiffChunk1.FileSize);
                 wr.Write(RiffChunk1.RiffFormat);
@@ -77,27 +85,26 @@ namespace WaveVisualizer
                 wr.Write(FmtChunk1.BitsPerSample);
                 wr.Write(DataChunk1.DataID);
                 wr.Write(DataChunk1.DataSize);
-                f.Seek(40, System.IO.SeekOrigin.Begin);
+                f.Seek(44, System.IO.SeekOrigin.Begin);
 
-                short[] shorts = DataChunk1.Data.Select(x => (short)(x)).ToArray();
-                byte[] data = shorts.Select(x => Convert.ToInt16(x))
-                    .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
-                wr.Write(data);
-                //if (FmtChunk1.BitsPerSample == 16)
-                //{
-                //    for (int i = 0; i < DataChunk1.Data.Length; i++)
-                //    {
-                //        wr.Write(DataChunk1.Data[i]);
-                //    }
-                //}
-                //if(FmtChunk1.BitsPerSample == 8)
-                //{
-                //    for (int i = 0; i < DataChunk1.Data.Length; i++)
-                //    {
-                //        wr.Write((Byte)DataChunk1.Data[i]);
-                //    }
-                //}
-               
+                if(FmtChunk1.BitsPerSample == 16)
+                {
+                    short[] shorts = DataChunk1.Data.Select(x => (short)(x)).ToArray();
+                    byte[] data = shorts.Select(x => Convert.ToInt16(x))
+                        .SelectMany(x => BitConverter.GetBytes(x)).ToArray();
+                    wr.Write(data);
+                } else
+                {
+                    float[] flts = DataChunk1.Data.Select(x => (float)(x)).ToArray();
+                    byte[] data = flts.SelectMany(x => BitConverter.GetBytes(x)).ToArray();
+                    //wr.Write(data);
+                    for (int i = 0; i < data.Length; ++i)
+                    {
+                      wr.Write(data[i]);
+                    }
+
+                }
+
             }
             finally
             {
@@ -148,6 +155,15 @@ namespace WaveVisualizer
             public byte[] RiffFormat { get => riffFormat; set => riffFormat = value; }
             public uint FileSize { get => fileSize; set => fileSize = value; }
             public byte[] RiffID { get => riffID; set => riffID = value; }
+
+            public void printRiff()
+            {
+                Debug.WriteLine("RiffChunk---------");
+                Debug.WriteLine(
+                   "Riff ID: " + Encoding.UTF8.GetString(RiffID, 0, RiffID.Length)
+                   + "\nChunkSize(File Size): " + FileSize
+                   + "\nFormat: " + Encoding.UTF8.GetString(RiffFormat, 0, RiffID.Length));
+            }
         }
 
         //24 bytes
@@ -174,7 +190,7 @@ namespace WaveVisualizer
             public void Read(FileStream FS)
             {
                 FS.Read(fmtID, 0, 4);
-                //Debug.Assert(m_FmtID[0] == 102, "Format ID Not Valid");
+                Debug.Assert(fmtID[0] == 102, "Format ID Not Valid");
                 BinaryReader binRead = new BinaryReader(FS);
 
                 fmtSize = binRead.ReadUInt32();
@@ -199,6 +215,20 @@ namespace WaveVisualizer
             public uint AverageBytesPerSec { get => averageBytesPerSec; set => averageBytesPerSec = value; }
             public ushort BlockAlign { get => blockAlign; set => blockAlign = value; }
             public ushort BitsPerSample { get => bitsPerSample; set => bitsPerSample = value; }
+
+            public void printFmt()
+            {
+                Debug.WriteLine("FmtChunk--------");
+                Debug.WriteLine(
+                    "Fmt ID: " + Encoding.UTF8.GetString(FmtID, 0, FmtID.Length)
+                   + "\nFmtSize: " + FmtSize
+                   + "\nFmtTag: " + FmtTag
+                   + "\nChannels: " + Channels
+                   + "\nSampleRate: " + SamplesPerSec
+                   + "\nByteRate: " + AverageBytesPerSec
+                   + "\nBlockAlign: " + BlockAlign
+                   + "\nBitsPerSample: " + BitsPerSample);
+            }
         }
 
         //8 bytes plus size of data
@@ -228,26 +258,46 @@ namespace WaveVisualizer
                 ushort bitsPerSample = fmt.BitsPerSample;
                 numSamples = (int)dataSize / (bitsPerSample/8);
                 data = new double[numSamples];
-                FS.Seek(40, System.IO.SeekOrigin.Begin);
-                short[] temp = new short[data.Length];
+                FS.Seek(44, System.IO.SeekOrigin.Begin);
+                int[] temp = new int[data.Length];
+                double[] tempD = new double[data.Length];
                 for (int i = 0; i < numSamples; i++)
                 {
                     if(bitsPerSample == 16){
                         temp[i] = binRead.ReadInt16();
                     } else {
-                        temp[i] = binRead.ReadByte();
+                        tempD[i] = binRead.ReadSingle();
                     }
                 }
-                data = temp.Select(x => (double)(x)).ToArray();
-                //for (int i = 0, j = 0; i < wv.dataChunkSize - 4; i += (int)wv.blockAlign, j++)
-                //    temp[j] = BitConverter.ToInt16(wave, i);
-            }
+                if(bitsPerSample == 16)
+                {
+                    data = temp.Select(x => (double)(x)).ToArray();
+                } else
+                {
 
+                    data = tempD;
+                }
+            }
+            public void copyData(double[] newData)
+            {
+                Data = new double[NumSamples];
+                Array.Copy(newData, 0, Data, 0, numSamples);
+            }
             //getters/setters
             public byte[] DataID { get => dataID; set => dataID = value; }
             public uint DataSize { get => dataSize; set => dataSize = value; }
             public double[] Data { get => data; set => data = value; }
             public int NumSamples { get => numSamples; set => numSamples = value; }
+
+            public void printDataChunk()
+            {
+                Debug.WriteLine("DataChunk--------");
+                Debug.WriteLine(
+                    "DataID: " + Encoding.UTF8.GetString(DataID, 0, DataID.Length)
+                + "\nDataSize: " + DataSize
+                   + "\nNumSamples: " + NumSamples
+                +"\nDataLength: " + Data.Length);
+            }
 
         }
 
