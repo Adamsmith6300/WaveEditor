@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -9,8 +10,11 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 
+
 namespace WaveVisualizer
 {
+
+    /// <summary>the fourier chart showing frequencies extracted from the sound</summary>
     class FourierChart
     {
         private ComplexNum[] fourierSamples;
@@ -27,6 +31,10 @@ namespace WaveVisualizer
         Graphics dc;
         Brush brush = new SolidBrush(Color.FromArgb(255, 220, 20, 60));
 
+
+        /// <summary>Initializes a new instance of the <see cref="FourierChart"/> class.</summary>
+        /// <param name="fourierSamples">The fourier samples.</param>
+        /// <param name="chart2">The fourier chart</param>
         public FourierChart(ComplexNum[] fourierSamples, Chart chart2)
         {
             this.fourierSamples = fourierSamples;
@@ -38,6 +46,8 @@ namespace WaveVisualizer
             this.fLowBucket = 0;
         }
 
+
+        /// <summary>Setups the chart.</summary>
         public void setupChart()
         {
             for (int i = 0; i < fourierSamples.Length; i++)
@@ -52,6 +62,9 @@ namespace WaveVisualizer
             dc = this.chart2.CreateGraphics();
         }
 
+
+        /// <summary>Draws the chart.</summary>
+        /// <param name="chart2">  The fourier chart</param>
         private void drawChart(Chart chart2)
         {
             chart2.Series.Clear();
@@ -80,6 +93,9 @@ namespace WaveVisualizer
             r2 = new Rectangle();
         }
 
+
+        /// <summary>Generates the filter.</summary>
+        /// <returns>array of complex numbers representing the filter</returns>
         public ComplexNum[] generateFilter()
         {
             this.filter = new ComplexNum[this.frequencies.Length];
@@ -120,6 +136,10 @@ namespace WaveVisualizer
             
         }
 
+
+        /// <summary>Handles the MouseDown event of the Chart2 control.</summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void Chart2_MouseDown(object sender, EventArgs e)
         {
             if (this.fourierSamples.Length <= 0) return;
@@ -142,20 +162,26 @@ namespace WaveVisualizer
             }
             r1.Y = (int)yBottom + 1;
             r1.Height = (int)(yTop - yBottom);
-            r1.X = pX;//+ (int)chartArea.InnerPlotPosition.X;
+            r1.X = pX;
             r1.Width = pX;
             r2.X = (int)xMax - pX + (int)xMin;
             r2.Y = (int)yBottom + 1;
             r2.Width = pX2;
             r2.Height = (int)(yTop - yBottom);
-
-            //dc.FillRectangle(brush, r2);
         }
+
+        /// <summary>Handles the MouseUp event of the Chart2 control.</summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void Chart2_MouseUp(object sender, EventArgs e)
         {
             if (this.fourierSamples.Length <= 0) return;
             this.chartClicked = false;
         }
+
+        /// <summary>Handles the MouseMove event of the Chart2 control.</summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void Chart2_MouseMove(object sender, EventArgs e)
         {
             if (this.fourierSamples.Length <= 0) return;

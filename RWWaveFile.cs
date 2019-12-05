@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace WaveVisualizer
 {
+
+    /// <summary>Represents wave files, (reads/writes)</summary>
     class RWWaveFile
     {
         private string filepath;
@@ -18,7 +20,21 @@ namespace WaveVisualizer
         private FmtChunk fmtChunk;
         private DataChunk dataChunk;
 
-        //constructors
+
+        /// <summary>Initializes a new instance of the <see cref="RWWaveFile"/> class.</summary>
+        /// <param name="rid">The Chunk id</param>
+        /// <param name="rfs">The Chunk size</param>
+        /// <param name="rfmt">The Chunk format (WAVE)</param>
+        /// <param name="fid">The subChunk id</param>
+        /// <param name="fsz">The subChunk Size.</param>
+        /// <param name="ftg">The audio format</param>
+        /// <param name="fc">The number of channels</param>
+        /// <param name="fsr">The sample rate</param>
+        /// <param name="fbs">The byte rate</param>
+        /// <param name="fba">The block align</param>
+        /// <param name="fbps">The bits per sample</param>
+        /// <param name="did">The subChunk id 2 (DATA)</param>
+        /// <param name="dsz">The data size (bytes)</param>
         public RWWaveFile(Byte[] rid, uint rfs, Byte[] rfmt,
                          Byte[] fid, uint fsz, ushort ftg, ushort fc, uint fsr, uint fbs, ushort fba, ushort fbps,
                          Byte[] did, uint dsz)
@@ -46,6 +62,9 @@ namespace WaveVisualizer
             DataChunk1.DataSize = dsz;
         }
 
+
+        /// <summary>Initializes a new instance of the <see cref="RWWaveFile"/> class.</summary>
+        /// <param name="newFilePath">The path to the file</param>
         public RWWaveFile(string newFilePath)
         {
             filepath = newFilePath;
@@ -56,6 +75,8 @@ namespace WaveVisualizer
             DataChunk1 = new DataChunk(fileStream, FmtChunk1);
         }
 
+
+        /// <summary>Prints the wavefile header.</summary>
         public void printWave()
         {
             RiffChunk1.printRiff();
@@ -65,6 +86,9 @@ namespace WaveVisualizer
         internal RiffChunk RiffChunk1 { get => riffChunk; set => riffChunk = value; }
         internal FmtChunk FmtChunk1 { get => fmtChunk; set => fmtChunk = value; }
         internal DataChunk DataChunk1 { get => dataChunk; set => dataChunk = value; }
+
+        /// <summary>Writes the wavefile with the specified name.</summary>
+        /// <param name="name">The name of the output file</param>
         public void Write(string name)
         {
             FileStream f = new FileStream(name, FileMode.Create, FileAccess.Write);
@@ -97,7 +121,6 @@ namespace WaveVisualizer
                 {
                     float[] flts = DataChunk1.Data.Select(x => (float)(x)).ToArray();
                     byte[] data = flts.SelectMany(x => BitConverter.GetBytes(x)).ToArray();
-                    //wr.Write(data);
                     for (int i = 0; i < data.Length; ++i)
                     {
                       wr.Write(data[i]);
@@ -122,7 +145,8 @@ namespace WaveVisualizer
 
         }
 
-        //first 12 bytes
+
+        /// <summary>class representing the riffchunk of the wavefile header</summary>
         public class RiffChunk
         {
             //"RIFF"
@@ -132,6 +156,8 @@ namespace WaveVisualizer
             //"wave"
             private byte[] riffFormat;
 
+            /// <summary>Initializes a new instance of the <see cref="RiffChunk"/> class.</summary>
+            /// <param name="FS">The filestream passed in from the wavefile class</param>
             public RiffChunk(FileStream FS)
             {
                 riffID = new byte[4];
@@ -139,10 +165,13 @@ namespace WaveVisualizer
                 Read(FS);
             }
 
+            /// <summary>Initializes a new instance of the <see cref="RiffChunk"/> class.</summary>
             public RiffChunk()
             {
             }
 
+            /// <summary>Reads the specified fs.</summary>
+            /// <param name="FS">The filestream passed in from the constructor</param>
             public void Read(FileStream FS)
             {
                 FS.Read(riffID, 0, 4);
@@ -156,6 +185,7 @@ namespace WaveVisualizer
             public uint FileSize { get => fileSize; set => fileSize = value; }
             public byte[] RiffID { get => riffID; set => riffID = value; }
 
+            /// <summary>Prints the riffchunk part of the wavefile header</summary>
             public void printRiff()
             {
                 Debug.WriteLine("RiffChunk---------");
@@ -166,7 +196,8 @@ namespace WaveVisualizer
             }
         }
 
-        //24 bytes
+
+        /// <summary>format chunk of the header</summary>
         public class FmtChunk
         {
             private byte[] fmtID;
@@ -177,16 +208,22 @@ namespace WaveVisualizer
             private uint averageBytesPerSec;
             private ushort blockAlign;
             private ushort bitsPerSample;
+
+            /// <summary>Initializes a new instance of the <see cref="FmtChunk"/> class.</summary>
+            /// <param name="FS">The filestream passed in from the wavefile class</param>
             public FmtChunk(FileStream FS)
             {
                 fmtID = new byte[4];
                 Read(FS);
             }
 
+            /// <summary>Initializes a new instance of the <see cref="FmtChunk"/> class.</summary>
             public FmtChunk()
             {
             }
 
+            /// <summary>Reads the specified fs.</summary>
+            /// <param name="FS">The filestream passed in from the constructor</param>
             public void Read(FileStream FS)
             {
                 FS.Read(fmtID, 0, 4);
@@ -200,9 +237,7 @@ namespace WaveVisualizer
                 averageBytesPerSec = binRead.ReadUInt32();
                 blockAlign = binRead.ReadUInt16();
                 bitsPerSample = binRead.ReadUInt16();
-
-                // This accounts for the variable format header size 
-                // 12 bytes of Riff Header, 4 bytes for FormatId, 4 bytes for FormatSize & the Actual size of the Format Header 
+ 
                 FS.Seek(fmtSize + 20, System.IO.SeekOrigin.Begin);
             }
 
@@ -216,6 +251,8 @@ namespace WaveVisualizer
             public ushort BlockAlign { get => blockAlign; set => blockAlign = value; }
             public ushort BitsPerSample { get => bitsPerSample; set => bitsPerSample = value; }
 
+
+            /// <summary>Prints the format chunk of the wavefile header</summary>
             public void printFmt()
             {
                 Debug.WriteLine("FmtChunk--------");
@@ -231,23 +268,32 @@ namespace WaveVisualizer
             }
         }
 
-        //8 bytes plus size of data
+
+        /// <summary>data chunk of the wavefile header</summary>
         public class DataChunk
         {
             private byte[] dataID;
             private uint dataSize;
             private int numSamples;
             private double[] data;
+
+            /// <summary>Initializes a new instance of the <see cref="DataChunk"/> class.</summary>
+            /// <param name="FS">The filestream passed in from the wavefile class</param>
+            /// <param name="fmt">The format chunk of the header</param>
             public DataChunk(FileStream FS, FmtChunk fmt)
             {
                 dataID = new byte[4];
                 Read(FS, fmt);
             }
 
+            /// <summary>Initializes a new instance of the <see cref="DataChunk"/> class.</summary>
             public DataChunk()
             {
             }
 
+            /// <summary>Reads the specified fs.</summary>
+            /// <param name="FS">The filestream passed in from the constructor</param>
+            /// <param name="fmt">The format chunk of the header</param>
             public void Read(FileStream FS, FmtChunk fmt)
             {
                 FS.Read(dataID, 0, 4);
@@ -278,6 +324,9 @@ namespace WaveVisualizer
                     data = tempD;
                 }
             }
+
+            /// <summary>Copies data to the wavefile class</summary>
+            /// <param name="newData">The new data.</param>
             public void copyData(double[] newData)
             {
                 Data = new double[NumSamples];
@@ -289,6 +338,7 @@ namespace WaveVisualizer
             public double[] Data { get => data; set => data = value; }
             public int NumSamples { get => numSamples; set => numSamples = value; }
 
+            /// <summary>Prints the data chunk part of the wavefile header.</summary>
             public void printDataChunk()
             {
                 Debug.WriteLine("DataChunk--------");
@@ -300,8 +350,6 @@ namespace WaveVisualizer
             }
 
         }
-
-
 
     }
 }
