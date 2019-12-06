@@ -85,10 +85,13 @@ This Wave Editor allows users to analyse Waveform audio data. Users can capture 
 
 ## Screenshots
 
+# Sound recording displayed in the time domain
 ![Time domain](./assets/timeDomain.png)
 
+# Samples from sound recording displayed in the frequency domain
 ![Frequency domain](./assets/frequencyDomain.png)
 
+# Selecting and applying low pass filter
 ![Filter](./assets/filter.png)
 
  
