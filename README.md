@@ -30,7 +30,7 @@ This Wave Editor allows users to analyse Waveform audio data. Users can capture 
 
 * Windows 10
 * 1 gigahertz (GHz) or faster 32-bit (x86) or 64-bit (x64) processor
-* Intel OpenCL drivers
+* Intel OpenCL Tools 2019
 * Visual Studio 2019
 
 
@@ -40,7 +40,7 @@ This Wave Editor allows users to analyse Waveform audio data. Users can capture 
   2. Open the project solution file in Visual Studio
   3. Set x86 as your active solution platform
   4. Build and run the program
-  Note: If you get any errors relating to windows not being able to find the dll, open the CWaveAPI project solution in Visual studio and resolve all dependency issues that may come up.
+  Note: If you get any errors relating to windows not being able to find the CWaveApi.dll file, open the CWaveAPI project solution in Visual studio and resolve all dependency issues that may come up. It is highly likely that you don't have OpenCL Tools 2019 or that it is not linked properly. In any case, resolve the dependencies, build the CWaveApi.dll, then copy the CWaveApi.dll AND CWaveApi.lib files that were produced from the build and paste those files in the same folder as the WaveVisualizer.exe (bin->x86->debug)
 
 
 ## Features
