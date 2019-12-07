@@ -1,0 +1,8 @@
+C:\Users\Adam\source\repos\WaveVisualizer\bin\x86\Debug\WaveVisualizer.exe.config
+C:\Users\Adam\source\repos\WaveVisualizer\bin\x86\Debug\WaveVisualizer.exe
+C:\Users\Adam\source\repos\WaveVisualizer\bin\x86\Debug\WaveVisualizer.pdb
+C:\Users\Adam\source\repos\WaveVisualizer\obj\x86\Debug\WaveVisualizer.Form1.resources
+C:\Users\Adam\source\repos\WaveVisualizer\obj\x86\Debug\WaveVisualizer.Properties.Resources.resources
+C:\Users\Adam\source\repos\WaveVisualizer\obj\x86\Debug\WaveEditor.csproj.GenerateResource.cache
+C:\Users\Adam\source\repos\WaveVisualizer\obj\x86\Debug\WaveVisualizer.exe
+C:\Users\Adam\source\repos\WaveVisualizer\obj\x86\Debug\WaveVisualizer.pdb
